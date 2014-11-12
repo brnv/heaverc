@@ -13,13 +13,16 @@ var (
 var usage = `heaverc, the heaverd-ng client
 
 	Usage:
-	heaverc [-S] [-C] [-T] [-n NAME] [-i IMAGE] [-k KEY]
+	heaverc [-h] [-S] [-C] [-T] [-D]
+		[-n NAME] [-i IMAGE] [-k KEY]
 	heaverc [options]
 
 	Options:
 	-h|--help		Show this help.
-	-C|--create		Create container.
 	-S|--start		Start container.
+	-C|--create		Create container.
+	-T|--stop		Stop container.
+	-D|--destroy		Destroy  container.
 	-n NAME, --name NAME	Name of container.
 	-i IMAGE, --image IMAGE	Image(s) for container.
 	-k KEY, --key KEY	Public ssh key (will be added to root's auhorized keys)
@@ -48,6 +51,10 @@ func main() {
 
 	if args["-T"] != false {
 		api.EnqueueStopRequest()
+	}
+
+	if args["-D"] != false {
+		api.EnqueueDeleteRequest()
 	}
 
 	if args["--image"] != nil {

@@ -1,6 +1,11 @@
 package main
 
-import "strings"
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"strings"
+)
 
 const (
 	//apiBaseUrl                    = "http://container.s:8081/"
@@ -40,11 +45,46 @@ type stopRequest struct {
 	request
 }
 
+type deleteRequest struct {
+	request
+}
+
 func (api *RestApi) Execute() string {
 	for _, request := range api.RequestsQueue {
 		log.Notice("%v", request)
+		switch req := request.(type) {
+		case *createRequest:
+			api.performRequest(req.url, req.method, map[string]interface{}{
+				"image": []string{req.image},
+				"key":   req.key,
+			})
+		case *startRequest:
+			api.performRequest(req.url, req.method, nil)
+		case *stopRequest:
+			api.performRequest(req.url, req.method, nil)
+		case *deleteRequest:
+			api.performRequest(req.url, req.method, nil)
+		}
 	}
 	return "done"
+}
+
+func (api *RestApi) performRequest(
+	url string, method string, params map[string]interface{}) {
+
+	switch method {
+	case "POST":
+		paramsEncoded, _ := json.Marshal(params)
+		resp, err := http.Post(url, "", bytes.NewBuffer(paramsEncoded))
+		log.Notice("%v", resp)
+		log.Notice("%v", err)
+	case "DELETE":
+		req, err := http.NewRequest("DELETE", url, nil)
+		resp, err := http.DefaultClient.Do(req)
+		err = err
+		log.Notice("%v", resp)
+	}
+
 }
 
 func (api *RestApi) EnqueueCreateRequest() {
@@ -81,6 +121,13 @@ func (api *RestApi) EnqueueStopRequest() {
 	request := &stopRequest{}
 	request.method = "POST"
 	request.url = api.getUrl(apiStopRequestUrl)
+	api.RequestsQueue = append(api.RequestsQueue, request)
+}
+
+func (api *RestApi) EnqueueDeleteRequest() {
+	request := &deleteRequest{}
+	request.method = "DELETE"
+	request.url = api.getUrl(apiDeleteRequestUrl)
 	api.RequestsQueue = append(api.RequestsQueue, request)
 }
 
