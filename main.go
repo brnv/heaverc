@@ -15,7 +15,6 @@ var usage = `heaverc, the heaverd-ng client
 	Usage:
 	heaverc [-h] [-S] [-C] [-T] [-D]
 		[-n NAME] [-i IMAGE] [-k KEY]
-	heaverc [options]
 
 	Options:
 	-h|--help		Show this help.
