@@ -28,46 +28,37 @@ var usage = `heaverc, the heaverd-ng client
 func main() {
 	args, _ := docopt.Parse(usage, nil, true, version, false)
 
-	api := &Api{
-		Params: RequestParams{},
+	containerName := ""
+
+	if args["--name"] != nil {
+		containerName = args["--name"].(string)
+	}
+
+	api := &RestApi{
+		ContainerName: containerName,
 	}
 
 	if args["-C"] != false {
-		api.AddCreateRequest()
+		api.EnqueueCreateRequest()
 	}
 
 	if args["-S"] != false {
-		api.AddStartRequest()
+		api.EnqueueStartRequest()
 	}
 
 	if args["-T"] != false {
-		api.AddStopRequest()
-	}
-
-	if args["-n"] != nil {
-		api.SetContainerName(args["-n"].(string))
-	}
-
-	if args["--name"] != nil {
-		api.SetContainerName(args["--name"].(string))
-	}
-
-	if args["-i"] != nil {
-		api.SetParamImage(args["-i"].(string))
+		api.EnqueueStopRequest()
 	}
 
 	if args["--image"] != nil {
-		api.SetParamImage(args["--image"].(string))
-	}
-
-	if args["-k"] != nil {
-		api.SetParamKey(args["-k"].(string))
+		api.SetImageParam(args["--image"].(string))
 	}
 
 	if args["--key"] != nil {
-		api.SetParamKey(args["--key"].(string))
+		api.SetKeyParam(args["--key"].(string))
 	}
 
 	result := api.Execute()
+
 	log.Notice("%v", result)
 }

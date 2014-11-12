@@ -14,16 +14,11 @@ const (
 	apiBaseUrl                    = "http://lxbox.host.s:8081/"
 )
 
-type Api struct {
-	containerName string
-	poolId        string
-	Operations    []*request
-	Params        RequestParams
-}
-
-type RequestParams struct {
-	image string
-	key   string
+type RestApi struct {
+	RequestsQueue []interface{}
+	ContainerName string
+	PoolId        string
+	HostName      string
 }
 
 type request struct {
@@ -31,58 +26,66 @@ type request struct {
 	url    string
 }
 
-func getApiUrl(url string) string {
-	return apiBaseUrl + apiPrefix + url
+type createRequest struct {
+	request
+	image string
+	key   string
 }
 
-func (api *Api) SetContainerName(name string) {
-	api.containerName = name
+type startRequest struct {
+	request
 }
 
-func (api *Api) SetParamKey(key string) {
-	api.Params.key = key
+type stopRequest struct {
+	request
 }
 
-func (api *Api) SetParamImage(image string) {
-	api.Params.image = image
-}
-
-func (api *Api) AddCreateRequest() {
-	request := &request{
-		method: "POST",
-		url:    getApiUrl(apiCreateRequestUrl),
-	}
-	api.Operations = append(api.Operations, request)
-}
-
-func (api *Api) AddStartRequest() {
-	request := &request{
-		method: "POST",
-		url:    getApiUrl(apiStartRequestUrl),
-	}
-	api.Operations = append(api.Operations, request)
-}
-
-func (api *Api) AddStopRequest() {
-	request := &request{
-		method: "POST",
-		url:    getApiUrl(apiStopRequestUrl),
-	}
-	api.Operations = append(api.Operations, request)
-}
-
-func (api *Api) Execute() string {
-	api.replaceUrlPlaceholders()
-	for _, request := range api.Operations {
+func (api *RestApi) Execute() string {
+	for _, request := range api.RequestsQueue {
 		log.Notice("%v", request)
 	}
-	log.Notice("%v", api.Params)
 	return "done"
 }
 
-func (api *Api) replaceUrlPlaceholders() {
-	for _, request := range api.Operations {
-		request.url = strings.Replace(request.url, ":cid", api.containerName, 1)
-		request.url = strings.Replace(request.url, ":poolid", api.poolId, 1)
+func (api *RestApi) EnqueueCreateRequest() {
+	request := &createRequest{}
+	request.method = "POST"
+	request.url = api.getUrl(apiCreateRequestUrl)
+	api.RequestsQueue = append(api.RequestsQueue, request)
+}
+
+func (api *RestApi) SetImageParam(image string) {
+	for _, request := range api.RequestsQueue {
+		if v, ok := request.(*createRequest); ok {
+			v.image = image
+		}
 	}
+}
+
+func (api *RestApi) SetKeyParam(key string) {
+	for _, request := range api.RequestsQueue {
+		if v, ok := request.(*createRequest); ok {
+			v.key = key
+		}
+	}
+}
+
+func (api *RestApi) EnqueueStartRequest() {
+	request := &startRequest{}
+	request.method = "POST"
+	request.url = api.getUrl(apiStartRequestUrl)
+	api.RequestsQueue = append(api.RequestsQueue, request)
+}
+
+func (api *RestApi) EnqueueStopRequest() {
+	request := &stopRequest{}
+	request.method = "POST"
+	request.url = api.getUrl(apiStopRequestUrl)
+	api.RequestsQueue = append(api.RequestsQueue, request)
+}
+
+func (api *RestApi) getUrl(url string) string {
+	url = strings.Replace(url, ":cid", api.ContainerName, 1)
+	url = strings.Replace(url, ":poolid", api.PoolId, 1)
+	return apiBaseUrl + apiPrefix + url
 }
