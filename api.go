@@ -52,8 +52,9 @@ type request struct {
 type (
 	createRequest struct {
 		request
-		image string
-		key   string
+		image  string
+		key    string
+		rawkey string
 	}
 	startRequest                  struct{ request }
 	stopRequest                   struct{ request }
@@ -66,10 +67,15 @@ func (api *RestApi) Execute() (string, error) {
 	for _, request := range api.RequestsQueue {
 		switch req := request.(type) {
 		case *createRequest:
-			api.performRequest(req.url, req.method, map[string]interface{}{
-				"image": []string{req.image},
-				"key":   req.key,
-			})
+			key := api.getKey(req)
+			log.Notice("%v", key)
+			_, err := api.performRequest(req.url,
+				req.method,
+				map[string]interface{}{
+					"image": []string{req.image},
+					"key":   key,
+				})
+			return "created", err
 		case *startRequest:
 			api.performRequest(req.url, req.method, nil)
 		case *stopRequest:
@@ -111,7 +117,7 @@ func (api *RestApi) Execute() (string, error) {
 			return formatOutput(containersListStringed), err
 		}
 	}
-	return "done", nil
+	return "", nil
 }
 
 func (api *RestApi) performRequest(
@@ -126,13 +132,11 @@ func (api *RestApi) performRequest(
 	case "POST":
 		paramsEncoded, _ := json.Marshal(params)
 		resp, err := http.Post(url, "", bytes.NewBuffer(paramsEncoded))
-		log.Notice("%v", resp)
-		log.Notice("%v", err)
+		return resp, err
 	case "DELETE":
 		req, err := http.NewRequest("DELETE", url, nil)
 		resp, err := http.DefaultClient.Do(req)
-		err = err
-		log.Notice("%v", resp)
+		return resp, err
 	default:
 	}
 
@@ -162,6 +166,14 @@ func (api *RestApi) SetKeyParam(key string) {
 	for _, request := range api.RequestsQueue {
 		if v, ok := request.(*createRequest); ok {
 			v.key = key
+		}
+	}
+}
+
+func (api *RestApi) SetRawKeyParam(rawkey string) {
+	for _, request := range api.RequestsQueue {
+		if v, ok := request.(*createRequest); ok {
+			v.rawkey = rawkey
 		}
 	}
 }
@@ -214,6 +226,14 @@ func (api *RestApi) getUrl(url string) string {
 	url = strings.Replace(url, ":poolid", api.PoolId, 1)
 	url = strings.Replace(url, ":hid", api.Hostname, 1)
 	return apiBaseUrl + apiVersion + url
+}
+
+func (api *RestApi) getKey(request *createRequest) string {
+	if request.rawkey != "" {
+		return request.rawkey
+	}
+	key, _ := ioutil.ReadFile(request.key)
+	return string(key)
 }
 
 func formatOutput(strings []string) string {

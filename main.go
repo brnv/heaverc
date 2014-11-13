@@ -17,7 +17,7 @@ var usage = `heaverc, the heaverd-ng client
 	Usage:
 	heaverc [-h] [-S] [-C] [-T] [-D] [-L]
 		[-n NAME] [-i IMAGE] [--host HOST] [-k KEY]
-		[--pool POOL]
+		[--raw-key RAW_KEY] [--pool POOL]
 
 	Options:
 	-h|--help		Show this help.
@@ -30,7 +30,8 @@ var usage = `heaverc, the heaverd-ng client
 	-i IMAGE, --image IMAGE	Image(s) for container.
 	--host HOST		Host to operate on.
 	--pool POOL		Pool to create container on.
-	-k KEY, --key KEY	Public ssh key (will be added to root's auhorized keys)
+	-k KEY, --key KEY	Public ssh key (will be added to root's auhorized keys).
+	--raw-key RAW_KEY	Public ssh key as string.
 `
 
 func main() {
@@ -86,6 +87,10 @@ func main() {
 
 	if args["--key"] != nil {
 		api.SetKeyParam(args["--key"].(string))
+	}
+
+	if args["--raw-key"] != nil {
+		api.SetRawKeyParam(args["--raw-key"].(string))
 	}
 
 	result, _ := api.Execute()
