@@ -77,13 +77,13 @@ func (api *RestApi) Execute() (string, error) {
 					"key":   key,
 				})
 			return "created", err
-		case *startRequest:
+		case startRequest:
 			api.performRequest(req.url, req.method, nil)
-		case *stopRequest:
+		case stopRequest:
 			api.performRequest(req.url, req.method, nil)
-		case *deleteRequest:
+		case deleteRequest:
 			api.performRequest(req.url, req.method, nil)
-		case *listAllHostsContainersRequest:
+		case listAllHostsContainersRequest:
 			response, err := api.performRequest(req.url, req.method, nil)
 			hostsListRaw, err := ioutil.ReadAll(response.Body)
 			hostsList := hostsList{}
@@ -101,7 +101,7 @@ func (api *RestApi) Execute() (string, error) {
 			}
 			return formatOutput(containersListStringed), err
 
-		case *listOneHostContainersRequest:
+		case listOneHostContainersRequest:
 			response, err := api.performRequest(req.url, req.method, nil)
 			hostinfo, err := ioutil.ReadAll(response.Body)
 			host := host{}
@@ -117,7 +117,7 @@ func (api *RestApi) Execute() (string, error) {
 			}
 			return formatOutput(containersListStringed), err
 
-		case *listHostsRequest:
+		case listHostsRequest:
 			response, err := api.performRequest(req.url, req.method, nil)
 			hostsListRaw, err := ioutil.ReadAll(response.Body)
 			hostsList := hostsList{}
@@ -192,21 +192,21 @@ func (api *RestApi) SetRawKeyParam(rawkey string) {
 }
 
 func (api *RestApi) EnqueueStartRequest() {
-	request := &startRequest{}
+	request := startRequest{}
 	request.method = "POST"
 	request.url = api.getUrl(apiStartRequestUrl)
 	api.RequestsQueue = append(api.RequestsQueue, request)
 }
 
 func (api *RestApi) EnqueueStopRequest() {
-	request := &stopRequest{}
+	request := stopRequest{}
 	request.method = "POST"
 	request.url = api.getUrl(apiStopRequestUrl)
 	api.RequestsQueue = append(api.RequestsQueue, request)
 }
 
 func (api *RestApi) EnqueueDeleteRequest() {
-	request := &deleteRequest{}
+	request := deleteRequest{}
 	request.method = "DELETE"
 	request.url = api.getUrl(apiDeleteRequestUrl)
 	api.RequestsQueue = append(api.RequestsQueue, request)
@@ -221,21 +221,21 @@ func (api *RestApi) EnqueueListRequest() {
 }
 
 func (api *RestApi) enqueueAllHostsContainersListRequest() {
-	request := &listAllHostsContainersRequest{}
+	request := listAllHostsContainersRequest{}
 	request.method = "GET"
 	request.url = api.getUrl(apiHostsInfoRequestUrl)
 	api.RequestsQueue = append(api.RequestsQueue, request)
 }
 
 func (api *RestApi) enqueueOneHostContainersListRequest() {
-	request := &listOneHostContainersRequest{}
+	request := listOneHostContainersRequest{}
 	request.method = "GET"
 	request.url = api.getUrl(apiOneHostInfoRequestUrl)
 	api.RequestsQueue = append(api.RequestsQueue, request)
 }
 
 func (api *RestApi) EnqueueListHostsRequest() {
-	request := &listHostsRequest{}
+	request := listHostsRequest{}
 	request.method = "GET"
 	request.url = api.getUrl(apiHostsInfoRequestUrl)
 	api.RequestsQueue = append(api.RequestsQueue, request)
