@@ -61,6 +61,7 @@ type (
 	deleteRequest                 struct{ request }
 	listAllHostsContainersRequest struct{ request }
 	listOneHostContainersRequest  struct{ request }
+	listHostsRequest              struct{ request }
 )
 
 func (api *RestApi) Execute() (string, error) {
@@ -115,6 +116,18 @@ func (api *RestApi) Execute() (string, error) {
 						c.Ip))
 			}
 			return formatOutput(containersListStringed), err
+
+		case *listHostsRequest:
+			response, err := api.performRequest(req.url, req.method, nil)
+			hostsListRaw, err := ioutil.ReadAll(response.Body)
+			hostsList := hostsList{}
+			err = json.Unmarshal(hostsListRaw, &hostsList)
+
+			hostsListStringed := []string{}
+			for hostname, _ := range hostsList {
+				hostsListStringed = append(hostsListStringed, hostname)
+			}
+			return formatOutput(hostsListStringed), err
 		}
 	}
 	return "", nil
@@ -218,6 +231,13 @@ func (api *RestApi) enqueueOneHostContainersListRequest() {
 	request := &listOneHostContainersRequest{}
 	request.method = "GET"
 	request.url = api.getUrl(apiOneHostInfoRequestUrl)
+	api.RequestsQueue = append(api.RequestsQueue, request)
+}
+
+func (api *RestApi) EnqueueListHostsRequest() {
+	request := &listHostsRequest{}
+	request.method = "GET"
+	request.url = api.getUrl(apiHostsInfoRequestUrl)
 	api.RequestsQueue = append(api.RequestsQueue, request)
 }
 

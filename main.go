@@ -15,7 +15,7 @@ var (
 var usage = `heaverc, the heaverd-ng client
 
 	Usage:
-	heaverc [-h] [-S] [-C] [-T] [-D] [-L]
+	heaverc [-h] [-S] [-C] [-T] [-D] [-L] [-H]
 		[-n NAME] [-i IMAGE] [--host HOST] [-k KEY]
 		[--raw-key RAW_KEY] [--pool POOL]
 
@@ -26,6 +26,7 @@ var usage = `heaverc, the heaverd-ng client
 	-T|--stop		Stop container.
 	-D|--destroy		Destroy  container.
 	-L|--list		List containers.
+	-H|--host-list	List hosts.
 	-n NAME, --name NAME	Name of container.
 	-i IMAGE, --image IMAGE	Image(s) for container.
 	--host HOST		Host to operate on.
@@ -79,6 +80,10 @@ func main() {
 
 	if args["-L"] != false {
 		api.EnqueueListRequest()
+	}
+
+	if args["-H"] != false {
+		api.EnqueueListHostsRequest()
 	}
 
 	if args["--image"] != nil {
