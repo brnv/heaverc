@@ -17,6 +17,7 @@ var usage = `heaverc, the heaverd-ng client
 	Usage:
 	heaverc [-h] [-S] [-C] [-T] [-D] [-L]
 		[-n NAME] [-i IMAGE] [--host HOST] [-k KEY]
+		[--pool POOL]
 
 	Options:
 	-h|--help		Show this help.
@@ -28,6 +29,7 @@ var usage = `heaverc, the heaverd-ng client
 	-n NAME, --name NAME	Name of container.
 	-i IMAGE, --image IMAGE	Image(s) for container.
 	--host HOST		Host to operate on.
+	--pool POOL		Pool to create container on.
 	-k KEY, --key KEY	Public ssh key (will be added to root's auhorized keys)
 `
 
@@ -46,9 +48,16 @@ func main() {
 		hostname = args["--host"].(string)
 	}
 
+	poolname := ""
+
+	if args["--pool"] != nil {
+		poolname = args["--pool"].(string)
+	}
+
 	api := &RestApi{
 		ContainerName: containerName,
 		Hostname:      hostname,
+		PoolId:        poolname,
 	}
 
 	if args["-S"] != false {

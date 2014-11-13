@@ -142,7 +142,11 @@ func (api *RestApi) performRequest(
 func (api *RestApi) EnqueueCreateRequest() {
 	request := &createRequest{}
 	request.method = "POST"
-	request.url = api.getUrl(apiCreateRequestUrl)
+	if api.PoolId != "" {
+		request.url = api.getUrl(apiCreateInsidePoolRequestUrl)
+	} else {
+		request.url = api.getUrl(apiCreateRequestUrl)
+	}
 	api.RequestsQueue = append(api.RequestsQueue, request)
 }
 
