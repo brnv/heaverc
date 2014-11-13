@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/docopt/docopt-go"
 	"github.com/op/go-logging"
 )
@@ -13,8 +15,8 @@ var (
 var usage = `heaverc, the heaverd-ng client
 
 	Usage:
-	heaverc [-h] [-S] [-C] [-T] [-D]
-		[-n NAME] [-i IMAGE] [-k KEY]
+	heaverc [-h] [-S] [-C] [-T] [-D] [-L]
+		[-n NAME] [-i IMAGE] [--host HOST] [-k KEY]
 
 	Options:
 	-h|--help		Show this help.
@@ -22,8 +24,10 @@ var usage = `heaverc, the heaverd-ng client
 	-C|--create		Create container.
 	-T|--stop		Stop container.
 	-D|--destroy		Destroy  container.
+	-L|--list		List containers.
 	-n NAME, --name NAME	Name of container.
 	-i IMAGE, --image IMAGE	Image(s) for container.
+	--host HOST		Host to operate on.
 	-k KEY, --key KEY	Public ssh key (will be added to root's auhorized keys)
 `
 
@@ -36,16 +40,23 @@ func main() {
 		containerName = args["--name"].(string)
 	}
 
-	api := &RestApi{
-		ContainerName: containerName,
+	hostname := ""
+
+	if args["--host"] != nil {
+		hostname = args["--host"].(string)
 	}
 
-	if args["-C"] != false {
-		api.EnqueueCreateRequest()
+	api := &RestApi{
+		ContainerName: containerName,
+		Hostname:      hostname,
 	}
 
 	if args["-S"] != false {
 		api.EnqueueStartRequest()
+	}
+
+	if args["-C"] != false {
+		api.EnqueueCreateRequest()
 	}
 
 	if args["-T"] != false {
@@ -56,6 +67,10 @@ func main() {
 		api.EnqueueDeleteRequest()
 	}
 
+	if args["-L"] != false {
+		api.EnqueueListRequest()
+	}
+
 	if args["--image"] != nil {
 		api.SetImageParam(args["--image"].(string))
 	}
@@ -64,7 +79,7 @@ func main() {
 		api.SetKeyParam(args["--key"].(string))
 	}
 
-	result := api.Execute()
+	result, _ := api.Execute()
 
-	log.Notice("%v", result)
+	fmt.Print(result + "\tOK\n")
 }
