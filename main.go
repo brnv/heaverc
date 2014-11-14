@@ -102,12 +102,24 @@ func main() {
 		api.SetRawKeyParam(args["--raw-key"].(string))
 	}
 
-	result, err := api.Execute()
+	resChan := make(chan string)
+	errChan := make(chan error)
+	doneChan := make(chan int)
+	go api.Execute(resChan, errChan, doneChan)
 
-	if err != nil {
-		fmt.Print(err.Error())
-		os.Exit(1)
+	for {
+		select {
+		case r := <-resChan:
+			fmt.Print(r)
+			fmt.Print("\n")
+		case err := <-errChan:
+			if err != nil {
+				fmt.Print(err)
+				os.Exit(1)
+			}
+		case <-doneChan:
+			fmt.Print("OK\n")
+			os.Exit(0)
+		}
 	}
-
-	fmt.Print(result + "\tOK\n")
 }

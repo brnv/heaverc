@@ -70,7 +70,11 @@ type (
 	listHostsRequest              struct{ request }
 )
 
-func (api *RestApi) Execute() (string, error) {
+func (api *RestApi) Execute(
+	resChan chan string,
+	errChan chan error,
+	doneChan chan int) {
+
 	for _, request := range api.RequestsQueue {
 		switch req := request.(type) {
 
@@ -88,21 +92,24 @@ func (api *RestApi) Execute() (string, error) {
 			container := container{}
 			err = json.Unmarshal(apiAnswer.Msg, &container)
 			if apiAnswer.Err != "" {
-				return "", errors.New(apiAnswer.Err)
+
+				errChan <- errors.New(apiAnswer.Err)
 			}
 			createResultMessage := fmt.Sprintf("Created container %v with "+
 				"addresses: %v", container.Name, container.Ip)
-			return formatOutput([]string{createResultMessage}), err
+			resChan <- formatOutput([]string{createResultMessage})
+			errChan <- err
 
 		case startRequest:
 			response, err := api.performRequest(req.url, req.method, nil)
 			switch response.StatusCode {
 			case 204:
-				return formatOutput([]string{
+				resChan <- formatOutput([]string{
 					fmt.Sprintf("Container %v started", api.ContainerName),
-				}), err
+				})
+				errChan <- err
 			case 404:
-				return "", errors.New(
+				errChan <- errors.New(
 					fmt.Sprintf("No such container: %v\n", api.ContainerName))
 			}
 
@@ -110,11 +117,12 @@ func (api *RestApi) Execute() (string, error) {
 			response, err := api.performRequest(req.url, req.method, nil)
 			switch response.StatusCode {
 			case 204:
-				return formatOutput([]string{
+				resChan <- formatOutput([]string{
 					fmt.Sprintf("Container %v stopped", api.ContainerName),
-				}), err
+				})
+				errChan <- err
 			case 404:
-				return "", errors.New(
+				errChan <- errors.New(
 					fmt.Sprintf("No such container: %v\n", api.ContainerName))
 			}
 
@@ -122,18 +130,18 @@ func (api *RestApi) Execute() (string, error) {
 			response, err := api.performRequest(req.url, req.method, nil)
 			switch response.StatusCode {
 			case 204:
-				return formatOutput([]string{
+				resChan <- formatOutput([]string{
 					fmt.Sprintf("Container %v destroyed", api.ContainerName),
-				}), err
+				})
+				errChan <- err
 			case 404:
-				return "", errors.New(
+				errChan <- errors.New(
 					fmt.Sprintf("No such container: %v\n", api.ContainerName))
 			case 409:
 				answerRaw, _ := ioutil.ReadAll(response.Body)
 				apiAnswer := apiAnswer{}
 				_ = json.Unmarshal(answerRaw, &apiAnswer)
-
-				return "", errors.New(apiAnswer.Err)
+				errChan <- errors.New(apiAnswer.Err)
 			}
 
 		case listAllHostsContainersRequest:
@@ -152,7 +160,8 @@ func (api *RestApi) Execute() (string, error) {
 							c.Ip))
 				}
 			}
-			return formatOutput(containersListStringed), err
+			resChan <- formatOutput(containersListStringed)
+			errChan <- err
 
 		case listOneHostContainersRequest:
 			response, err := api.performRequest(req.url, req.method, nil)
@@ -168,7 +177,8 @@ func (api *RestApi) Execute() (string, error) {
 						c.Status,
 						c.Ip))
 			}
-			return formatOutput(containersListStringed), err
+			resChan <- formatOutput(containersListStringed)
+			errChan <- err
 
 		case listHostsRequest:
 			response, err := api.performRequest(req.url, req.method, nil)
@@ -180,10 +190,13 @@ func (api *RestApi) Execute() (string, error) {
 			for hostname, _ := range hostsList {
 				hostsListStringed = append(hostsListStringed, hostname)
 			}
-			return formatOutput(hostsListStringed), err
+
+			resChan <- formatOutput(hostsListStringed)
+			errChan <- err
 		}
 	}
-	return "", nil
+
+	doneChan <- 1
 }
 
 func (api *RestApi) performRequest(
