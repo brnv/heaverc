@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -22,7 +23,12 @@ const (
 	apiBaseUrl                    = "http://lxbox.host.s:8081/"
 )
 
-type Container struct {
+type apiAnswer struct {
+	Err string          `json:"error"`
+	Msg json.RawMessage `json:"msg"`
+}
+
+type container struct {
 	Name   string `json:"name"`
 	Host   string `json:"host"`
 	Status string `json:"status"`
@@ -30,11 +36,11 @@ type Container struct {
 }
 
 type host struct {
-	Containers map[string]Container
+	Containers map[string]container
 }
 
 type hostsList map[string]struct {
-	Containers map[string]Container
+	Containers map[string]container
 }
 
 type RestApi struct {
@@ -67,22 +73,36 @@ type (
 func (api *RestApi) Execute() (string, error) {
 	for _, request := range api.RequestsQueue {
 		switch req := request.(type) {
+
 		case *createRequest:
 			key := api.getKey(req)
-			log.Notice("%v", key)
-			_, err := api.performRequest(req.url,
+			response, err := api.performRequest(req.url,
 				req.method,
 				map[string]interface{}{
 					"image": []string{req.image},
 					"key":   key,
 				})
-			return "created", err
+			answerRaw, err := ioutil.ReadAll(response.Body)
+			apiAnswer := apiAnswer{}
+			err = json.Unmarshal(answerRaw, &apiAnswer)
+			container := container{}
+			err = json.Unmarshal(apiAnswer.Msg, &container)
+			if apiAnswer.Err != "" {
+				return "", errors.New(apiAnswer.Err)
+			}
+			createResultMessage := fmt.Sprintf("Created container %v with "+
+				"addresses: %v", container.Name, container.Ip)
+			return formatOutput([]string{createResultMessage}), err
+
 		case startRequest:
 			api.performRequest(req.url, req.method, nil)
+
 		case stopRequest:
 			api.performRequest(req.url, req.method, nil)
+
 		case deleteRequest:
 			api.performRequest(req.url, req.method, nil)
+
 		case listAllHostsContainersRequest:
 			response, err := api.performRequest(req.url, req.method, nil)
 			hostsListRaw, err := ioutil.ReadAll(response.Body)

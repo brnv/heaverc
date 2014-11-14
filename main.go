@@ -2,14 +2,18 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/docopt/docopt-go"
 	"github.com/op/go-logging"
 )
 
 var (
+	log = logging.MustGetLogger("heaverc")
+)
+
+const (
 	version = "0.1"
-	log     = logging.MustGetLogger("heaverc")
 )
 
 var usage = `heaverc, the heaverd-ng client
@@ -98,7 +102,12 @@ func main() {
 		api.SetRawKeyParam(args["--raw-key"].(string))
 	}
 
-	result, _ := api.Execute()
+	result, err := api.Execute()
+
+	if err != nil {
+		fmt.Print(err.Error() + "\n")
+		os.Exit(1)
+	}
 
 	fmt.Print(result + "\tOK\n")
 }
