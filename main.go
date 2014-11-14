@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -13,7 +14,8 @@ var (
 )
 
 const (
-	version = "0.1"
+	version        = "0.1"
+	startStopError = "Cannot start and stop container simultaneously (-ST given)"
 )
 
 var usage = `heaverc, the heaverd-ng client
@@ -105,6 +107,14 @@ func main() {
 	resChan := make(chan string)
 	errChan := make(chan error)
 	doneChan := make(chan int)
+
+	err := checkArgs(args)
+	if err != nil {
+		fmt.Print(err)
+		fmt.Print("\n")
+		os.Exit(1)
+	}
+
 	go api.Execute(resChan, errChan, doneChan)
 
 	for {
@@ -122,4 +132,11 @@ func main() {
 			os.Exit(0)
 		}
 	}
+}
+
+func checkArgs(args map[string]interface{}) error {
+	if args["-S"] != false && args["-T"] != false {
+		return errors.New(startStopError)
+	}
+	return nil
 }
