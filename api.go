@@ -103,7 +103,7 @@ func (api *RestApi) Execute() (string, error) {
 				}), err
 			case 404:
 				return "", errors.New(
-					fmt.Sprintf("No such container: %v", api.ContainerName))
+					fmt.Sprintf("No such container: %v\n", api.ContainerName))
 			}
 
 		case stopRequest:
@@ -115,11 +115,26 @@ func (api *RestApi) Execute() (string, error) {
 				}), err
 			case 404:
 				return "", errors.New(
-					fmt.Sprintf("No such container: %v", api.ContainerName))
+					fmt.Sprintf("No such container: %v\n", api.ContainerName))
 			}
 
 		case deleteRequest:
-			api.performRequest(req.url, req.method, nil)
+			response, err := api.performRequest(req.url, req.method, nil)
+			switch response.StatusCode {
+			case 204:
+				return formatOutput([]string{
+					fmt.Sprintf("Container %v destroyed", api.ContainerName),
+				}), err
+			case 404:
+				return "", errors.New(
+					fmt.Sprintf("No such container: %v\n", api.ContainerName))
+			case 409:
+				answerRaw, _ := ioutil.ReadAll(response.Body)
+				apiAnswer := apiAnswer{}
+				_ = json.Unmarshal(answerRaw, &apiAnswer)
+
+				return "", errors.New(apiAnswer.Err)
+			}
 
 		case listAllHostsContainersRequest:
 			response, err := api.performRequest(req.url, req.method, nil)

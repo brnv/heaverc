@@ -105,7 +105,7 @@ func main() {
 	result, err := api.Execute()
 
 	if err != nil {
-		fmt.Print(err.Error() + "\n")
+		fmt.Print(err.Error())
 		os.Exit(1)
 	}
 
