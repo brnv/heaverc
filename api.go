@@ -95,10 +95,28 @@ func (api *RestApi) Execute() (string, error) {
 			return formatOutput([]string{createResultMessage}), err
 
 		case startRequest:
-			api.performRequest(req.url, req.method, nil)
+			response, err := api.performRequest(req.url, req.method, nil)
+			switch response.StatusCode {
+			case 204:
+				return formatOutput([]string{
+					fmt.Sprintf("Container %v started", api.ContainerName),
+				}), err
+			case 404:
+				return "", errors.New(
+					fmt.Sprintf("No such container: %v", api.ContainerName))
+			}
 
 		case stopRequest:
-			api.performRequest(req.url, req.method, nil)
+			response, err := api.performRequest(req.url, req.method, nil)
+			switch response.StatusCode {
+			case 204:
+				return formatOutput([]string{
+					fmt.Sprintf("Container %v stopped", api.ContainerName),
+				}), err
+			case 404:
+				return "", errors.New(
+					fmt.Sprintf("No such container: %v", api.ContainerName))
+			}
 
 		case deleteRequest:
 			api.performRequest(req.url, req.method, nil)
