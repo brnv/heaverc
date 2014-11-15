@@ -23,8 +23,12 @@ const (
 	apiBaseUrl                    = "http://lxbox.host.s:8081/"
 )
 
+type request interface {
+	Execute() (string, error)
+}
+
 type Requests struct {
-	Queue     []interface{}
+	Queue     []request
 	UrlParams struct {
 		ContainerName string
 		PoolId        string
@@ -33,22 +37,22 @@ type Requests struct {
 }
 
 type (
-	request struct {
+	requestParams struct {
 		method string
 		url    string
 	}
 	createRequest struct {
-		request
+		requestParams
 		image  string
 		key    string
 		rawkey string
 	}
-	startRequest                  struct{ request }
-	stopRequest                   struct{ request }
-	deleteRequest                 struct{ request }
-	listAllHostsContainersRequest struct{ request }
-	listOneHostContainersRequest  struct{ request }
-	listHostsRequest              struct{ request }
+	startRequest                  struct{ requestParams }
+	stopRequest                   struct{ requestParams }
+	deleteRequest                 struct{ requestParams }
+	listAllHostsContainersRequest struct{ requestParams }
+	listOneHostContainersRequest  struct{ requestParams }
+	listHostsRequest              struct{ requestParams }
 )
 
 type heaverdJsonResponse struct {
@@ -63,140 +67,237 @@ type containerInfo struct {
 	Ip     string `json:"ip"`
 }
 
+func (r *createRequest) Execute() (string, error) {
+	key, err := r.getKey()
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := execute(r.url,
+		r.method,
+		map[string]interface{}{
+			"image": []string{r.image},
+			"key":   key,
+		})
+	if err != nil {
+		return "", err
+	}
+
+	raw, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	jsonResp := heaverdJsonResponse{}
+	err = json.Unmarshal(raw, &jsonResp)
+	if err != nil {
+		return "", err
+	}
+
+	if jsonResp.Err != "" {
+		return "", errors.New(jsonResp.Err)
+	}
+
+	c := containerInfo{}
+	err = json.Unmarshal(jsonResp.Msg, &c)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("Created container %v with "+
+		"addresses: %v", c.Name, c.Ip), nil
+}
+
+func (r *createRequest) getKey() (string, error) {
+	if r.rawkey != "" {
+		return r.rawkey, nil
+	}
+
+	if r.key != "" {
+		key, err := ioutil.ReadFile(r.key)
+		if err != nil {
+			return "", err
+		}
+		return string(key), nil
+	}
+
+	return "", nil
+}
+
+func (r startRequest) Execute() (string, error) {
+	resp, err := execute(r.url, r.method, nil)
+	if err != nil {
+		return "", err
+	}
+
+	switch resp.StatusCode {
+	case 204:
+		return "Container started", nil
+
+	case 404:
+		return "", errors.New("No such container")
+	}
+
+	return "", nil
+}
+
+func (r stopRequest) Execute() (string, error) {
+	resp, err := execute(r.url, r.method, nil)
+	if err != nil {
+		return "", err
+	}
+
+	switch resp.StatusCode {
+	case 204:
+		return "Container stopped", nil
+
+	case 404:
+		return "", errors.New("No such container")
+	}
+
+	return "", nil
+}
+
+func (r deleteRequest) Execute() (string, error) {
+	resp, err := execute(r.url, r.method, nil)
+	if err != nil {
+		return "", err
+	}
+
+	switch resp.StatusCode {
+	case 204:
+		return "Container destroyed", nil
+
+	case 404:
+		return "", errors.New("No such container")
+
+	case 409:
+		raw, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return "", err
+		}
+
+		jsonResp := heaverdJsonResponse{}
+		err = json.Unmarshal(raw, &jsonResp)
+		if err != nil {
+			return "", err
+		}
+
+		return "", errors.New(jsonResp.Err)
+	}
+
+	return "", nil
+}
+
+func (r listAllHostsContainersRequest) Execute() (string, error) {
+	resp, err := execute(r.url, r.method, nil)
+	if err != nil {
+		return "", err
+	}
+
+	raw, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	hostsList := map[string]struct {
+		Containers map[string]containerInfo
+	}{}
+	err = json.Unmarshal(raw, &hostsList)
+	if err != nil {
+		return "", err
+	}
+
+	containersListStringed := []string{}
+	for _, host := range hostsList {
+		for _, c := range host.Containers {
+			containersListStringed = append(containersListStringed,
+				fmt.Sprintf("%s: %s, ip: %s",
+					c.Name,
+					c.Status,
+					c.Ip))
+		}
+
+	}
+
+	return formatToString(containersListStringed), nil
+}
+
+func (r listOneHostContainersRequest) Execute() (string, error) {
+	resp, err := execute(r.url, r.method, nil)
+	if err != nil {
+		return "", err
+	}
+
+	raw, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	host := struct {
+		Containers map[string]containerInfo
+	}{}
+	err = json.Unmarshal(raw, &host)
+	if err != nil {
+		return "", err
+	}
+
+	containersListStringed := []string{}
+	for _, c := range host.Containers {
+		containersListStringed = append(containersListStringed,
+			fmt.Sprintf("%s: %s, ip: %s",
+				c.Name,
+				c.Status,
+				c.Ip))
+	}
+
+	return formatToString(containersListStringed), nil
+}
+
+func (r listHostsRequest) Execute() (string, error) {
+	resp, err := execute(r.url, r.method, nil)
+	if err != nil {
+		return "", err
+	}
+
+	raw, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	hostsList := map[string]interface{}{}
+	err = json.Unmarshal(raw, &hostsList)
+	if err != nil {
+		return "", err
+	}
+
+	hostsListStringed := []string{}
+	for hostname, _ := range hostsList {
+		hostsListStringed = append(hostsListStringed, hostname)
+	}
+
+	return formatToString(hostsListStringed), nil
+}
+
 func (r *Requests) Run(
 	resChan chan string,
 	errChan chan error,
 	doneChan chan int) {
 
 	for _, request := range r.Queue {
-		switch req := request.(type) {
 
-		case *createRequest:
-			key := r.getKey(req)
-			response, err := r.performRequest(req.url,
-				req.method,
-				map[string]interface{}{
-					"image": []string{req.image},
-					"key":   key,
-				})
-			answerRaw, err := ioutil.ReadAll(response.Body)
-			heaverdJsonResponse := heaverdJsonResponse{}
-			err = json.Unmarshal(answerRaw, &heaverdJsonResponse)
-			container := containerInfo{}
-			err = json.Unmarshal(heaverdJsonResponse.Msg, &container)
-			if heaverdJsonResponse.Err != "" {
-
-				errChan <- errors.New(heaverdJsonResponse.Err)
-			}
-			createResultMessage := fmt.Sprintf("Created container %v with "+
-				"addresses: %v", container.Name, container.Ip)
-			resChan <- formatOutput([]string{createResultMessage})
+		res, err := request.Execute()
+		if err != nil {
 			errChan <- err
-
-		case startRequest:
-			response, err := r.performRequest(req.url, req.method, nil)
-			switch response.StatusCode {
-			case 204:
-				resChan <- formatOutput([]string{
-					fmt.Sprintf("Container %v started", r.UrlParams.ContainerName),
-				})
-				errChan <- err
-			case 404:
-				errChan <- errors.New(
-					fmt.Sprintf("No such container: %v\n", r.UrlParams.ContainerName))
-			}
-
-		case stopRequest:
-			response, err := r.performRequest(req.url, req.method, nil)
-			switch response.StatusCode {
-			case 204:
-				resChan <- formatOutput([]string{
-					fmt.Sprintf("Container %v stopped", r.UrlParams.ContainerName),
-				})
-				errChan <- err
-			case 404:
-				errChan <- errors.New(
-					fmt.Sprintf("No such container: %v\n", r.UrlParams.ContainerName))
-			}
-
-		case deleteRequest:
-			response, err := r.performRequest(req.url, req.method, nil)
-			switch response.StatusCode {
-			case 204:
-				resChan <- formatOutput([]string{
-					fmt.Sprintf("Container %v destroyed", r.UrlParams.ContainerName),
-				})
-				errChan <- err
-			case 404:
-				errChan <- errors.New(
-					fmt.Sprintf("No such container: %v\n", r.UrlParams.ContainerName))
-			case 409:
-				answerRaw, _ := ioutil.ReadAll(response.Body)
-				heaverdJsonResponse := heaverdJsonResponse{}
-				_ = json.Unmarshal(answerRaw, &heaverdJsonResponse)
-				errChan <- errors.New(heaverdJsonResponse.Err)
-			}
-
-		case listAllHostsContainersRequest:
-			response, err := r.performRequest(req.url, req.method, nil)
-			hostsListRaw, err := ioutil.ReadAll(response.Body)
-			hostsList := map[string]struct {
-				Containers map[string]containerInfo
-			}{}
-			err = json.Unmarshal(hostsListRaw, &hostsList)
-
-			containersListStringed := []string{}
-			for _, host := range hostsList {
-				for _, c := range host.Containers {
-					containersListStringed = append(containersListStringed,
-						fmt.Sprintf("%s: %s, ip: %s",
-							c.Name,
-							c.Status,
-							c.Ip))
-				}
-			}
-			resChan <- formatOutput(containersListStringed)
-			errChan <- err
-
-		case listOneHostContainersRequest:
-			response, err := r.performRequest(req.url, req.method, nil)
-			hostinfo, err := ioutil.ReadAll(response.Body)
-			host := struct {
-				Containers map[string]containerInfo
-			}{}
-			err = json.Unmarshal(hostinfo, &host)
-
-			containersListStringed := []string{}
-			for _, c := range host.Containers {
-				containersListStringed = append(containersListStringed,
-					fmt.Sprintf("%s: %s, ip: %s",
-						c.Name,
-						c.Status,
-						c.Ip))
-			}
-			resChan <- formatOutput(containersListStringed)
-			errChan <- err
-
-		case listHostsRequest:
-			response, err := r.performRequest(req.url, req.method, nil)
-			hostsListRaw, err := ioutil.ReadAll(response.Body)
-			hostsList := map[string]interface{}{}
-			err = json.Unmarshal(hostsListRaw, &hostsList)
-
-			hostsListStringed := []string{}
-			for hostname, _ := range hostsList {
-				hostsListStringed = append(hostsListStringed, hostname)
-			}
-
-			resChan <- formatOutput(hostsListStringed)
-			errChan <- err
+			continue
 		}
+		resChan <- res
 	}
 
 	doneChan <- 1
 }
 
-func (r *Requests) performRequest(
+func execute(
 	url string,
 	method string,
 	params map[string]interface{}) (*http.Response, error) {
@@ -205,15 +306,19 @@ func (r *Requests) performRequest(
 	case "GET":
 		resp, err := http.Get(url)
 		return resp, err
+
 	case "POST":
 		paramsEncoded, _ := json.Marshal(params)
 		resp, err := http.Post(url, "", bytes.NewBuffer(paramsEncoded))
 		return resp, err
+
 	case "DELETE":
 		req, err := http.NewRequest("DELETE", url, nil)
 		resp, err := http.DefaultClient.Do(req)
 		return resp, err
+
 	default:
+		return nil, nil
 	}
 
 	return nil, nil
@@ -222,11 +327,13 @@ func (r *Requests) performRequest(
 func (r *Requests) EnqueueCreateRequest() {
 	request := &createRequest{}
 	request.method = "POST"
+
 	if r.UrlParams.PoolId != "" {
 		request.url = r.getUrl(apiCreateInsidePoolRequestUrl)
 	} else {
 		request.url = r.getUrl(apiCreateRequestUrl)
 	}
+
 	r.Queue = append(r.Queue, request)
 }
 
@@ -311,15 +418,7 @@ func (r *Requests) getUrl(url string) string {
 	return apiBaseUrl + apiVersion + url
 }
 
-func (r *Requests) getKey(request *createRequest) string {
-	if request.rawkey != "" {
-		return request.rawkey
-	}
-	key, _ := ioutil.ReadFile(request.key)
-	return string(key)
-}
-
-func formatOutput(strings []string) string {
+func formatToString(strings []string) string {
 	res := ""
 	for i, str := range strings {
 		res += str
@@ -327,5 +426,6 @@ func formatOutput(strings []string) string {
 			res += "\n"
 		}
 	}
+
 	return res
 }

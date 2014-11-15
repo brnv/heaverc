@@ -45,19 +45,16 @@ func main() {
 	args, _ := docopt.Parse(usage, nil, true, version, false)
 
 	containerName := ""
-
 	if args["--name"] != nil {
 		containerName = args["--name"].(string)
 	}
 
 	hostname := ""
-
 	if args["--host"] != nil {
 		hostname = args["--host"].(string)
 	}
 
 	poolname := ""
-
 	if args["--pool"] != nil {
 		poolname = args["--pool"].(string)
 	}
@@ -121,11 +118,13 @@ func main() {
 		case r := <-resChan:
 			fmt.Print(r)
 			fmt.Print("\n")
+
 		case err := <-errChan:
 			if err != nil {
 				fmt.Print(err)
 				os.Exit(1)
 			}
+
 		case <-doneChan:
 			fmt.Print("OK\n")
 			os.Exit(0)
@@ -137,5 +136,6 @@ func checkArgs(args map[string]interface{}) error {
 	if args["-S"] != false && args["-T"] != false {
 		return errors.New(startStopError)
 	}
+
 	return nil
 }
