@@ -62,46 +62,45 @@ func main() {
 		poolname = args["--pool"].(string)
 	}
 
-	api := &RestApi{
-		ContainerName: containerName,
-		Hostname:      hostname,
-		PoolId:        poolname,
-	}
+	requestsChain := &Requests{}
+	requestsChain.UrlParams.ContainerName = containerName
+	requestsChain.UrlParams.Hostname = hostname
+	requestsChain.UrlParams.PoolId = poolname
 
 	if args["-S"] != false {
-		api.EnqueueStartRequest()
+		requestsChain.EnqueueStartRequest()
 	}
 
 	if args["-C"] != false {
-		api.EnqueueCreateRequest()
+		requestsChain.EnqueueCreateRequest()
 	}
 
 	if args["-T"] != false {
-		api.EnqueueStopRequest()
+		requestsChain.EnqueueStopRequest()
 	}
 
 	if args["-D"] != false {
-		api.EnqueueDeleteRequest()
+		requestsChain.EnqueueDeleteRequest()
 	}
 
 	if args["-L"] != false {
-		api.EnqueueListRequest()
+		requestsChain.EnqueueListRequest()
 	}
 
 	if args["-H"] != false {
-		api.EnqueueListHostsRequest()
+		requestsChain.EnqueueListHostsRequest()
 	}
 
 	if args["--image"] != nil {
-		api.SetImageParam(args["--image"].(string))
+		requestsChain.SetImageParam(args["--image"].(string))
 	}
 
 	if args["--key"] != nil {
-		api.SetKeyParam(args["--key"].(string))
+		requestsChain.SetKeyParam(args["--key"].(string))
 	}
 
 	if args["--raw-key"] != nil {
-		api.SetRawKeyParam(args["--raw-key"].(string))
+		requestsChain.SetRawKeyParam(args["--raw-key"].(string))
 	}
 
 	resChan := make(chan string)
@@ -115,7 +114,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	go api.Execute(resChan, errChan, doneChan)
+	go requestsChain.Run(resChan, errChan, doneChan)
 
 	for {
 		select {

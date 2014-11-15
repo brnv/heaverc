@@ -23,39 +23,20 @@ const (
 	apiBaseUrl                    = "http://lxbox.host.s:8081/"
 )
 
-type apiAnswer struct {
-	Err string          `json:"error"`
-	Msg json.RawMessage `json:"msg"`
-}
-
-type container struct {
-	Name   string `json:"name"`
-	Host   string `json:"host"`
-	Status string `json:"status"`
-	Ip     string `json:"ip"`
-}
-
-type host struct {
-	Containers map[string]container
-}
-
-type hostsList map[string]struct {
-	Containers map[string]container
-}
-
-type RestApi struct {
-	RequestsQueue []interface{}
-	ContainerName string
-	PoolId        string
-	Hostname      string
-}
-
-type request struct {
-	method string
-	url    string
+type Requests struct {
+	Queue     []interface{}
+	UrlParams struct {
+		ContainerName string
+		PoolId        string
+		Hostname      string
+	}
 }
 
 type (
+	request struct {
+		method string
+		url    string
+	}
 	createRequest struct {
 		request
 		image  string
@@ -70,30 +51,42 @@ type (
 	listHostsRequest              struct{ request }
 )
 
-func (api *RestApi) Execute(
+type heaverdJsonResponse struct {
+	Err string          `json:"error"`
+	Msg json.RawMessage `json:"msg"`
+}
+
+type containerInfo struct {
+	Name   string `json:"name"`
+	Host   string `json:"host"`
+	Status string `json:"status"`
+	Ip     string `json:"ip"`
+}
+
+func (r *Requests) Run(
 	resChan chan string,
 	errChan chan error,
 	doneChan chan int) {
 
-	for _, request := range api.RequestsQueue {
+	for _, request := range r.Queue {
 		switch req := request.(type) {
 
 		case *createRequest:
-			key := api.getKey(req)
-			response, err := api.performRequest(req.url,
+			key := r.getKey(req)
+			response, err := r.performRequest(req.url,
 				req.method,
 				map[string]interface{}{
 					"image": []string{req.image},
 					"key":   key,
 				})
 			answerRaw, err := ioutil.ReadAll(response.Body)
-			apiAnswer := apiAnswer{}
-			err = json.Unmarshal(answerRaw, &apiAnswer)
-			container := container{}
-			err = json.Unmarshal(apiAnswer.Msg, &container)
-			if apiAnswer.Err != "" {
+			heaverdJsonResponse := heaverdJsonResponse{}
+			err = json.Unmarshal(answerRaw, &heaverdJsonResponse)
+			container := containerInfo{}
+			err = json.Unmarshal(heaverdJsonResponse.Msg, &container)
+			if heaverdJsonResponse.Err != "" {
 
-				errChan <- errors.New(apiAnswer.Err)
+				errChan <- errors.New(heaverdJsonResponse.Err)
 			}
 			createResultMessage := fmt.Sprintf("Created container %v with "+
 				"addresses: %v", container.Name, container.Ip)
@@ -101,53 +94,55 @@ func (api *RestApi) Execute(
 			errChan <- err
 
 		case startRequest:
-			response, err := api.performRequest(req.url, req.method, nil)
+			response, err := r.performRequest(req.url, req.method, nil)
 			switch response.StatusCode {
 			case 204:
 				resChan <- formatOutput([]string{
-					fmt.Sprintf("Container %v started", api.ContainerName),
+					fmt.Sprintf("Container %v started", r.UrlParams.ContainerName),
 				})
 				errChan <- err
 			case 404:
 				errChan <- errors.New(
-					fmt.Sprintf("No such container: %v\n", api.ContainerName))
+					fmt.Sprintf("No such container: %v\n", r.UrlParams.ContainerName))
 			}
 
 		case stopRequest:
-			response, err := api.performRequest(req.url, req.method, nil)
+			response, err := r.performRequest(req.url, req.method, nil)
 			switch response.StatusCode {
 			case 204:
 				resChan <- formatOutput([]string{
-					fmt.Sprintf("Container %v stopped", api.ContainerName),
+					fmt.Sprintf("Container %v stopped", r.UrlParams.ContainerName),
 				})
 				errChan <- err
 			case 404:
 				errChan <- errors.New(
-					fmt.Sprintf("No such container: %v\n", api.ContainerName))
+					fmt.Sprintf("No such container: %v\n", r.UrlParams.ContainerName))
 			}
 
 		case deleteRequest:
-			response, err := api.performRequest(req.url, req.method, nil)
+			response, err := r.performRequest(req.url, req.method, nil)
 			switch response.StatusCode {
 			case 204:
 				resChan <- formatOutput([]string{
-					fmt.Sprintf("Container %v destroyed", api.ContainerName),
+					fmt.Sprintf("Container %v destroyed", r.UrlParams.ContainerName),
 				})
 				errChan <- err
 			case 404:
 				errChan <- errors.New(
-					fmt.Sprintf("No such container: %v\n", api.ContainerName))
+					fmt.Sprintf("No such container: %v\n", r.UrlParams.ContainerName))
 			case 409:
 				answerRaw, _ := ioutil.ReadAll(response.Body)
-				apiAnswer := apiAnswer{}
-				_ = json.Unmarshal(answerRaw, &apiAnswer)
-				errChan <- errors.New(apiAnswer.Err)
+				heaverdJsonResponse := heaverdJsonResponse{}
+				_ = json.Unmarshal(answerRaw, &heaverdJsonResponse)
+				errChan <- errors.New(heaverdJsonResponse.Err)
 			}
 
 		case listAllHostsContainersRequest:
-			response, err := api.performRequest(req.url, req.method, nil)
+			response, err := r.performRequest(req.url, req.method, nil)
 			hostsListRaw, err := ioutil.ReadAll(response.Body)
-			hostsList := hostsList{}
+			hostsList := map[string]struct {
+				Containers map[string]containerInfo
+			}{}
 			err = json.Unmarshal(hostsListRaw, &hostsList)
 
 			containersListStringed := []string{}
@@ -164,9 +159,11 @@ func (api *RestApi) Execute(
 			errChan <- err
 
 		case listOneHostContainersRequest:
-			response, err := api.performRequest(req.url, req.method, nil)
+			response, err := r.performRequest(req.url, req.method, nil)
 			hostinfo, err := ioutil.ReadAll(response.Body)
-			host := host{}
+			host := struct {
+				Containers map[string]containerInfo
+			}{}
 			err = json.Unmarshal(hostinfo, &host)
 
 			containersListStringed := []string{}
@@ -181,9 +178,9 @@ func (api *RestApi) Execute(
 			errChan <- err
 
 		case listHostsRequest:
-			response, err := api.performRequest(req.url, req.method, nil)
+			response, err := r.performRequest(req.url, req.method, nil)
 			hostsListRaw, err := ioutil.ReadAll(response.Body)
-			hostsList := hostsList{}
+			hostsList := map[string]interface{}{}
 			err = json.Unmarshal(hostsListRaw, &hostsList)
 
 			hostsListStringed := []string{}
@@ -199,7 +196,7 @@ func (api *RestApi) Execute(
 	doneChan <- 1
 }
 
-func (api *RestApi) performRequest(
+func (r *Requests) performRequest(
 	url string,
 	method string,
 	params map[string]interface{}) (*http.Response, error) {
@@ -222,99 +219,99 @@ func (api *RestApi) performRequest(
 	return nil, nil
 }
 
-func (api *RestApi) EnqueueCreateRequest() {
+func (r *Requests) EnqueueCreateRequest() {
 	request := &createRequest{}
 	request.method = "POST"
-	if api.PoolId != "" {
-		request.url = api.getUrl(apiCreateInsidePoolRequestUrl)
+	if r.UrlParams.PoolId != "" {
+		request.url = r.getUrl(apiCreateInsidePoolRequestUrl)
 	} else {
-		request.url = api.getUrl(apiCreateRequestUrl)
+		request.url = r.getUrl(apiCreateRequestUrl)
 	}
-	api.RequestsQueue = append(api.RequestsQueue, request)
+	r.Queue = append(r.Queue, request)
 }
 
-func (api *RestApi) SetImageParam(image string) {
-	for _, request := range api.RequestsQueue {
+func (r *Requests) SetImageParam(image string) {
+	for _, request := range r.Queue {
 		if v, ok := request.(*createRequest); ok {
 			v.image = image
 		}
 	}
 }
 
-func (api *RestApi) SetKeyParam(key string) {
-	for _, request := range api.RequestsQueue {
+func (r *Requests) SetKeyParam(key string) {
+	for _, request := range r.Queue {
 		if v, ok := request.(*createRequest); ok {
 			v.key = key
 		}
 	}
 }
 
-func (api *RestApi) SetRawKeyParam(rawkey string) {
-	for _, request := range api.RequestsQueue {
+func (r *Requests) SetRawKeyParam(rawkey string) {
+	for _, request := range r.Queue {
 		if v, ok := request.(*createRequest); ok {
 			v.rawkey = rawkey
 		}
 	}
 }
 
-func (api *RestApi) EnqueueStartRequest() {
+func (r *Requests) EnqueueStartRequest() {
 	request := startRequest{}
 	request.method = "POST"
-	request.url = api.getUrl(apiStartRequestUrl)
-	api.RequestsQueue = append(api.RequestsQueue, request)
+	request.url = r.getUrl(apiStartRequestUrl)
+	r.Queue = append(r.Queue, request)
 }
 
-func (api *RestApi) EnqueueStopRequest() {
+func (r *Requests) EnqueueStopRequest() {
 	request := stopRequest{}
 	request.method = "POST"
-	request.url = api.getUrl(apiStopRequestUrl)
-	api.RequestsQueue = append(api.RequestsQueue, request)
+	request.url = r.getUrl(apiStopRequestUrl)
+	r.Queue = append(r.Queue, request)
 }
 
-func (api *RestApi) EnqueueDeleteRequest() {
+func (r *Requests) EnqueueDeleteRequest() {
 	request := deleteRequest{}
 	request.method = "DELETE"
-	request.url = api.getUrl(apiDeleteRequestUrl)
-	api.RequestsQueue = append(api.RequestsQueue, request)
+	request.url = r.getUrl(apiDeleteRequestUrl)
+	r.Queue = append(r.Queue, request)
 }
 
-func (api *RestApi) EnqueueListRequest() {
-	if api.Hostname == "" {
-		api.enqueueAllHostsContainersListRequest()
+func (r *Requests) EnqueueListRequest() {
+	if r.UrlParams.Hostname == "" {
+		r.enqueueAllHostsContainersListRequest()
 	} else {
-		api.enqueueOneHostContainersListRequest()
+		r.enqueueOneHostContainersListRequest()
 	}
 }
 
-func (api *RestApi) enqueueAllHostsContainersListRequest() {
+func (r *Requests) enqueueAllHostsContainersListRequest() {
 	request := listAllHostsContainersRequest{}
 	request.method = "GET"
-	request.url = api.getUrl(apiHostsInfoRequestUrl)
-	api.RequestsQueue = append(api.RequestsQueue, request)
+	request.url = r.getUrl(apiHostsInfoRequestUrl)
+	r.Queue = append(r.Queue, request)
 }
 
-func (api *RestApi) enqueueOneHostContainersListRequest() {
+func (r *Requests) enqueueOneHostContainersListRequest() {
 	request := listOneHostContainersRequest{}
 	request.method = "GET"
-	request.url = api.getUrl(apiOneHostInfoRequestUrl)
-	api.RequestsQueue = append(api.RequestsQueue, request)
+	request.url = r.getUrl(apiOneHostInfoRequestUrl)
+	r.Queue = append(r.Queue, request)
 }
 
-func (api *RestApi) EnqueueListHostsRequest() {
+func (r *Requests) EnqueueListHostsRequest() {
 	request := listHostsRequest{}
 	request.method = "GET"
-	request.url = api.getUrl(apiHostsInfoRequestUrl)
-	api.RequestsQueue = append(api.RequestsQueue, request)
+	request.url = r.getUrl(apiHostsInfoRequestUrl)
+	r.Queue = append(r.Queue, request)
 }
 
-func (api *RestApi) getUrl(url string) string {
-	url = strings.Replace(url, ":cid", api.ContainerName, 1)
-	url = strings.Replace(url, ":poolid", api.PoolId, 1)
-	url = strings.Replace(url, ":hid", api.Hostname, 1)
+func (r *Requests) getUrl(url string) string {
+	url = strings.Replace(url, ":cid", r.UrlParams.ContainerName, 1)
+	url = strings.Replace(url, ":poolid", r.UrlParams.PoolId, 1)
+	url = strings.Replace(url, ":hid", r.UrlParams.Hostname, 1)
 	return apiBaseUrl + apiVersion + url
 }
 
-func (api *RestApi) getKey(request *createRequest) string {
+func (r *Requests) getKey(request *createRequest) string {
 	if request.rawkey != "" {
 		return request.rawkey
 	}
