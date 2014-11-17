@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	//apiBaseUrl                    = "http://container.s:8081/"
-	apiBaseUrl                    = "http://lxbox.host.s:8081/"
+	//apiBaseUrlDefault             = "http://container.s:8081/"
+	apiBaseUrlDefault             = "http://lxbox.host.s:8081/"
 	apiVersion                    = "v2"
 	apiStartRequestUrl            = "/c/:cid/start"
 	apiCreateRequestUrl           = "/c/:cid"
@@ -31,8 +31,9 @@ type Requests struct {
 	queue  []request
 	Params struct {
 		ContainerName string
-		PoolId        string
+		Poolname      string
 		Hostname      string
+		ApiBaseUrl    string
 	}
 }
 
@@ -327,7 +328,7 @@ func (r *Requests) EnqueueCreateRequest() {
 	request := &createRequest{}
 	request.method = "POST"
 
-	if r.Params.PoolId != "" {
+	if r.Params.Poolname != "" {
 		request.url = r.getUrl(apiCreateInsidePoolRequestUrl)
 	} else {
 		request.url = r.getUrl(apiCreateRequestUrl)
@@ -412,8 +413,14 @@ func (r *Requests) EnqueueListHostsRequest() {
 
 func (r *Requests) getUrl(url string) string {
 	url = strings.Replace(url, ":cid", r.Params.ContainerName, 1)
-	url = strings.Replace(url, ":poolid", r.Params.PoolId, 1)
+	url = strings.Replace(url, ":poolid", r.Params.Poolname, 1)
 	url = strings.Replace(url, ":hid", r.Params.Hostname, 1)
+
+	apiBaseUrl := apiBaseUrlDefault
+	if r.Params.ApiBaseUrl != "" {
+		apiBaseUrl = r.Params.ApiBaseUrl
+	}
+
 	return apiBaseUrl + apiVersion + url
 }
 

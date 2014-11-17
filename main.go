@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"os"
 
 	"github.com/docopt/docopt-go"
 	"github.com/op/go-logging"
+	"github.com/zazab/zhash"
 )
 
 var (
@@ -23,7 +25,7 @@ var usage = `heaverc, the heaverd-ng client
 	Usage:
 	heaverc [-h] [-S] [-C] [-T] [-D] [-L] [-H]
 		[-n NAME] [-i IMAGE] [--host HOST] [-k KEY]
-		[--raw-key RAW_KEY] [--pool POOL]
+		[--raw-key RAW_KEY] [--pool POOL] [--config=<path>]
 
 	Options:
 	-h|--help		Show this help.
@@ -39,6 +41,7 @@ var usage = `heaverc, the heaverd-ng client
 	--pool POOL		Pool to create container on.
 	-k KEY, --key KEY	Public ssh key (will be added to root's auhorized keys).
 	--raw-key RAW_KEY	Public ssh key as string.
+	--config=<path>		Configuration file.
 `
 
 func main() {
@@ -58,11 +61,24 @@ func main() {
 	if args["--pool"] != nil {
 		poolname = args["--pool"].(string)
 	}
-
 	requestsChain := &Requests{}
 	requestsChain.Params.ContainerName = containerName
 	requestsChain.Params.Hostname = hostname
-	requestsChain.Params.PoolId = poolname
+	requestsChain.Params.Poolname = poolname
+
+	if args["--config"] != nil {
+		config, err := getConfig(string(args["--config"].(string)))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		apiBaseUrl, err := config.GetString("api", "base_url")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		requestsChain.Params.ApiBaseUrl = apiBaseUrl
+	}
 
 	if args["-S"] != false {
 		requestsChain.EnqueueStartRequest()
@@ -100,16 +116,16 @@ func main() {
 		requestsChain.SetRawKeyParam(args["--raw-key"].(string))
 	}
 
-	resChan := make(chan string)
-	errChan := make(chan error)
-	doneChan := make(chan int)
-
 	err := checkArgs(args)
 	if err != nil {
 		fmt.Print(err)
 		fmt.Print("\n")
 		os.Exit(1)
 	}
+
+	resChan := make(chan string)
+	errChan := make(chan error)
+	doneChan := make(chan int)
 
 	go requestsChain.Run(resChan, errChan, doneChan)
 
@@ -136,4 +152,16 @@ func checkArgs(args map[string]interface{}) error {
 	}
 
 	return nil
+}
+
+func getConfig(path string) (zhash.Hash, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return zhash.Hash{}, err
+	}
+
+	config := zhash.NewHash()
+	config.ReadHash(bufio.NewReader(f))
+
+	return config, nil
 }
