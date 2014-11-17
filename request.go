@@ -12,6 +12,7 @@ import (
 
 const (
 	//apiBaseUrl                    = "http://container.s:8081/"
+	apiBaseUrl                    = "http://lxbox.host.s:8081/"
 	apiVersion                    = "v2"
 	apiStartRequestUrl            = "/c/:cid/start"
 	apiCreateRequestUrl           = "/c/:cid"
@@ -20,7 +21,6 @@ const (
 	apiDeleteRequestUrl           = "/c/:cid"
 	apiHostsInfoRequestUrl        = "/h"
 	apiOneHostInfoRequestUrl      = "/h/:hid/stats"
-	apiBaseUrl                    = "http://lxbox.host.s:8081/"
 )
 
 type request interface {
@@ -28,8 +28,8 @@ type request interface {
 }
 
 type Requests struct {
-	Queue     []request
-	UrlParams struct {
+	queue  []request
+	Params struct {
 		ContainerName string
 		PoolId        string
 		Hostname      string
@@ -65,6 +65,23 @@ type containerInfo struct {
 	Host   string `json:"host"`
 	Status string `json:"status"`
 	Ip     string `json:"ip"`
+}
+
+func (r *Requests) Run(
+	resChan chan string,
+	errChan chan error,
+	doneChan chan int) {
+
+	for _, request := range r.queue {
+		res, err := request.Execute()
+		if err != nil {
+			errChan <- err
+			continue
+		}
+		resChan <- res
+	}
+
+	doneChan <- 1
 }
 
 func (r *createRequest) Execute() (string, error) {
@@ -279,24 +296,6 @@ func (r listHostsRequest) Execute() (string, error) {
 	return formatToString(hostsListStringed), nil
 }
 
-func (r *Requests) Run(
-	resChan chan string,
-	errChan chan error,
-	doneChan chan int) {
-
-	for _, request := range r.Queue {
-
-		res, err := request.Execute()
-		if err != nil {
-			errChan <- err
-			continue
-		}
-		resChan <- res
-	}
-
-	doneChan <- 1
-}
-
 func execute(
 	url string,
 	method string,
@@ -328,17 +327,17 @@ func (r *Requests) EnqueueCreateRequest() {
 	request := &createRequest{}
 	request.method = "POST"
 
-	if r.UrlParams.PoolId != "" {
+	if r.Params.PoolId != "" {
 		request.url = r.getUrl(apiCreateInsidePoolRequestUrl)
 	} else {
 		request.url = r.getUrl(apiCreateRequestUrl)
 	}
 
-	r.Queue = append(r.Queue, request)
+	r.queue = append(r.queue, request)
 }
 
 func (r *Requests) SetImageParam(image string) {
-	for _, request := range r.Queue {
+	for _, request := range r.queue {
 		if v, ok := request.(*createRequest); ok {
 			v.image = image
 		}
@@ -346,7 +345,7 @@ func (r *Requests) SetImageParam(image string) {
 }
 
 func (r *Requests) SetKeyParam(key string) {
-	for _, request := range r.Queue {
+	for _, request := range r.queue {
 		if v, ok := request.(*createRequest); ok {
 			v.key = key
 		}
@@ -354,7 +353,7 @@ func (r *Requests) SetKeyParam(key string) {
 }
 
 func (r *Requests) SetRawKeyParam(rawkey string) {
-	for _, request := range r.Queue {
+	for _, request := range r.queue {
 		if v, ok := request.(*createRequest); ok {
 			v.rawkey = rawkey
 		}
@@ -365,25 +364,25 @@ func (r *Requests) EnqueueStartRequest() {
 	request := startRequest{}
 	request.method = "POST"
 	request.url = r.getUrl(apiStartRequestUrl)
-	r.Queue = append(r.Queue, request)
+	r.queue = append(r.queue, request)
 }
 
 func (r *Requests) EnqueueStopRequest() {
 	request := stopRequest{}
 	request.method = "POST"
 	request.url = r.getUrl(apiStopRequestUrl)
-	r.Queue = append(r.Queue, request)
+	r.queue = append(r.queue, request)
 }
 
 func (r *Requests) EnqueueDeleteRequest() {
 	request := deleteRequest{}
 	request.method = "DELETE"
 	request.url = r.getUrl(apiDeleteRequestUrl)
-	r.Queue = append(r.Queue, request)
+	r.queue = append(r.queue, request)
 }
 
 func (r *Requests) EnqueueListRequest() {
-	if r.UrlParams.Hostname == "" {
+	if r.Params.Hostname == "" {
 		r.enqueueAllHostsContainersListRequest()
 	} else {
 		r.enqueueOneHostContainersListRequest()
@@ -394,27 +393,27 @@ func (r *Requests) enqueueAllHostsContainersListRequest() {
 	request := listAllHostsContainersRequest{}
 	request.method = "GET"
 	request.url = r.getUrl(apiHostsInfoRequestUrl)
-	r.Queue = append(r.Queue, request)
+	r.queue = append(r.queue, request)
 }
 
 func (r *Requests) enqueueOneHostContainersListRequest() {
 	request := listOneHostContainersRequest{}
 	request.method = "GET"
 	request.url = r.getUrl(apiOneHostInfoRequestUrl)
-	r.Queue = append(r.Queue, request)
+	r.queue = append(r.queue, request)
 }
 
 func (r *Requests) EnqueueListHostsRequest() {
 	request := listHostsRequest{}
 	request.method = "GET"
 	request.url = r.getUrl(apiHostsInfoRequestUrl)
-	r.Queue = append(r.Queue, request)
+	r.queue = append(r.queue, request)
 }
 
 func (r *Requests) getUrl(url string) string {
-	url = strings.Replace(url, ":cid", r.UrlParams.ContainerName, 1)
-	url = strings.Replace(url, ":poolid", r.UrlParams.PoolId, 1)
-	url = strings.Replace(url, ":hid", r.UrlParams.Hostname, 1)
+	url = strings.Replace(url, ":cid", r.Params.ContainerName, 1)
+	url = strings.Replace(url, ":poolid", r.Params.PoolId, 1)
+	url = strings.Replace(url, ":hid", r.Params.Hostname, 1)
 	return apiBaseUrl + apiVersion + url
 }
 

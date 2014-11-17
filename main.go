@@ -60,9 +60,9 @@ func main() {
 	}
 
 	requestsChain := &Requests{}
-	requestsChain.UrlParams.ContainerName = containerName
-	requestsChain.UrlParams.Hostname = hostname
-	requestsChain.UrlParams.PoolId = poolname
+	requestsChain.Params.ContainerName = containerName
+	requestsChain.Params.Hostname = hostname
+	requestsChain.Params.PoolId = poolname
 
 	if args["-S"] != false {
 		requestsChain.EnqueueStartRequest()
@@ -120,10 +120,8 @@ func main() {
 			fmt.Print("\n")
 
 		case err := <-errChan:
-			if err != nil {
-				fmt.Print(err)
-				os.Exit(1)
-			}
+			fmt.Print(err)
+			os.Exit(1)
 
 		case <-doneChan:
 			fmt.Print("OK\n")
