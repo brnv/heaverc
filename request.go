@@ -34,26 +34,27 @@ type Requests struct {
 		Poolname      string
 		Hostname      string
 		ApiBaseUrl    string
+		DryRun        bool
 	}
 }
 
 type (
-	requestParams struct {
-		method string
-		url    string
+	defaultRequest struct {
+		Method string
+		Url    string
 	}
 	createRequest struct {
-		requestParams
+		defaultRequest
 		image  string
 		key    string
 		rawkey string
 	}
-	startRequest                  struct{ requestParams }
-	stopRequest                   struct{ requestParams }
-	deleteRequest                 struct{ requestParams }
-	listAllHostsContainersRequest struct{ requestParams }
-	listOneHostContainersRequest  struct{ requestParams }
-	listHostsRequest              struct{ requestParams }
+	startRequest                  defaultRequest
+	stopRequest                   defaultRequest
+	deleteRequest                 defaultRequest
+	listAllHostsContainersRequest defaultRequest
+	listOneHostContainersRequest  defaultRequest
+	listHostsRequest              defaultRequest
 )
 
 type heaverdJsonResponse struct {
@@ -74,6 +75,10 @@ func (r *Requests) Run(
 	doneChan chan int) {
 
 	for _, request := range r.queue {
+		if r.Params.DryRun == true {
+			resChan <- fmt.Sprintf("%s", request)
+			continue
+		}
 		res, err := request.Execute()
 		if err != nil {
 			errChan <- err
@@ -91,8 +96,8 @@ func (r *createRequest) Execute() (string, error) {
 		return "", err
 	}
 
-	resp, err := execute(r.url,
-		r.method,
+	resp, err := execute(r.Url,
+		r.Method,
 		map[string]interface{}{
 			"image": []string{r.image},
 			"key":   key,
@@ -143,7 +148,7 @@ func (r *createRequest) getKey() (string, error) {
 }
 
 func (r startRequest) Execute() (string, error) {
-	resp, err := execute(r.url, r.method, nil)
+	resp, err := execute(r.Url, r.Method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -160,7 +165,7 @@ func (r startRequest) Execute() (string, error) {
 }
 
 func (r stopRequest) Execute() (string, error) {
-	resp, err := execute(r.url, r.method, nil)
+	resp, err := execute(r.Url, r.Method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -177,7 +182,7 @@ func (r stopRequest) Execute() (string, error) {
 }
 
 func (r deleteRequest) Execute() (string, error) {
-	resp, err := execute(r.url, r.method, nil)
+	resp, err := execute(r.Url, r.Method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -208,7 +213,7 @@ func (r deleteRequest) Execute() (string, error) {
 }
 
 func (r listAllHostsContainersRequest) Execute() (string, error) {
-	resp, err := execute(r.url, r.method, nil)
+	resp, err := execute(r.Url, r.Method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -242,7 +247,7 @@ func (r listAllHostsContainersRequest) Execute() (string, error) {
 }
 
 func (r listOneHostContainersRequest) Execute() (string, error) {
-	resp, err := execute(r.url, r.method, nil)
+	resp, err := execute(r.Url, r.Method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -273,7 +278,7 @@ func (r listOneHostContainersRequest) Execute() (string, error) {
 }
 
 func (r listHostsRequest) Execute() (string, error) {
-	resp, err := execute(r.url, r.method, nil)
+	resp, err := execute(r.Url, r.Method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -326,12 +331,12 @@ func execute(
 
 func (r *Requests) EnqueueCreateRequest() {
 	request := &createRequest{}
-	request.method = "POST"
+	request.Method = "POST"
 
 	if r.Params.Poolname != "" {
-		request.url = r.getUrl(apiCreateInsidePoolRequestUrl)
+		request.Url = r.getUrl(apiCreateInsidePoolRequestUrl)
 	} else {
-		request.url = r.getUrl(apiCreateRequestUrl)
+		request.Url = r.getUrl(apiCreateRequestUrl)
 	}
 
 	r.queue = append(r.queue, request)
@@ -363,22 +368,23 @@ func (r *Requests) SetRawKeyParam(rawkey string) {
 
 func (r *Requests) EnqueueStartRequest() {
 	request := startRequest{}
-	request.method = "POST"
-	request.url = r.getUrl(apiStartRequestUrl)
+	request.Method = "POST"
+	request.Url = r.getUrl(apiStartRequestUrl)
 	r.queue = append(r.queue, request)
 }
 
 func (r *Requests) EnqueueStopRequest() {
 	request := stopRequest{}
-	request.method = "POST"
-	request.url = r.getUrl(apiStopRequestUrl)
+	request.Method = "POST"
+	request.Url = r.getUrl(apiStopRequestUrl)
+
 	r.queue = append(r.queue, request)
 }
 
 func (r *Requests) EnqueueDeleteRequest() {
 	request := deleteRequest{}
-	request.method = "DELETE"
-	request.url = r.getUrl(apiDeleteRequestUrl)
+	request.Method = "DELETE"
+	request.Url = r.getUrl(apiDeleteRequestUrl)
 	r.queue = append(r.queue, request)
 }
 
@@ -392,22 +398,22 @@ func (r *Requests) EnqueueListRequest() {
 
 func (r *Requests) enqueueAllHostsContainersListRequest() {
 	request := listAllHostsContainersRequest{}
-	request.method = "GET"
-	request.url = r.getUrl(apiHostsInfoRequestUrl)
+	request.Method = "GET"
+	request.Url = r.getUrl(apiHostsInfoRequestUrl)
 	r.queue = append(r.queue, request)
 }
 
 func (r *Requests) enqueueOneHostContainersListRequest() {
 	request := listOneHostContainersRequest{}
-	request.method = "GET"
-	request.url = r.getUrl(apiOneHostInfoRequestUrl)
+	request.Method = "GET"
+	request.Url = r.getUrl(apiOneHostInfoRequestUrl)
 	r.queue = append(r.queue, request)
 }
 
 func (r *Requests) EnqueueListHostsRequest() {
 	request := listHostsRequest{}
-	request.method = "GET"
-	request.url = r.getUrl(apiHostsInfoRequestUrl)
+	request.Method = "GET"
+	request.Url = r.getUrl(apiHostsInfoRequestUrl)
 	r.queue = append(r.queue, request)
 }
 

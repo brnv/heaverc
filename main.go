@@ -23,9 +23,9 @@ const (
 var usage = `heaverc, the heaverd-ng client
 
 	Usage:
-	heaverc [-h] [-S] [-C] [-T] [-D] [-L] [-H]
+	heaverc [-h] [-S] [-C] [-T] [-D] [-L] [-H] [-N]
 		[-n NAME] [-i IMAGE] [--host HOST] [-k KEY]
-		[--raw-key RAW_KEY] [--pool POOL] [--config=<path>]
+		[--raw-key RAW_KEY] [--pool POOL][--config=<path>]
 
 	Options:
 	-h|--help		Show this help.
@@ -35,6 +35,7 @@ var usage = `heaverc, the heaverd-ng client
 	-D|--destroy		Destroy  container.
 	-L|--list		List containers.
 	-H|--host-list		List hosts.
+	-N|--dryrun		Don't touch anything. report what will be done.
 	-n NAME, --name NAME	Name of container.
 	-i IMAGE, --image IMAGE	Image(s) for container.
 	--host HOST		Host to operate on.
@@ -66,6 +67,10 @@ func main() {
 	requestsChain.Params.Hostname = hostname
 	requestsChain.Params.Poolname = poolname
 
+	if args["-N"] != false {
+		requestsChain.Params.DryRun = true
+	}
+
 	if args["--config"] != nil {
 		config, err := getConfig(string(args["--config"].(string)))
 		if err != nil {
@@ -80,12 +85,12 @@ func main() {
 		requestsChain.Params.ApiBaseUrl = apiBaseUrl
 	}
 
-	if args["-S"] != false {
-		requestsChain.EnqueueStartRequest()
-	}
-
 	if args["-C"] != false {
 		requestsChain.EnqueueCreateRequest()
+	}
+
+	if args["-S"] != false {
+		requestsChain.EnqueueStartRequest()
 	}
 
 	if args["-T"] != false {
