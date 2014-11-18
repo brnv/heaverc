@@ -34,7 +34,7 @@ var usage = `heaverc, the heaverd-ng client
 	-T|--stop		Stop container.
 	-D|--destroy		Destroy  container.
 	-L|--list		List containers.
-	-H|--host-list	List hosts.
+	-H|--host-list		List hosts.
 	-n NAME, --name NAME	Name of container.
 	-i IMAGE, --image IMAGE	Image(s) for container.
 	--host HOST		Host to operate on.
@@ -118,9 +118,7 @@ func main() {
 
 	err := checkArgs(args)
 	if err != nil {
-		fmt.Print(err)
-		fmt.Print("\n")
-		os.Exit(1)
+		log.Fatal(err)
 	}
 
 	resChan := make(chan string)
@@ -136,8 +134,7 @@ func main() {
 			fmt.Print("\n")
 
 		case err := <-errChan:
-			fmt.Print(err)
-			os.Exit(1)
+			log.Fatal(err)
 
 		case <-doneChan:
 			fmt.Print("OK\n")
