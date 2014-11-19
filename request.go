@@ -27,14 +27,12 @@ type executor interface {
 }
 
 type Requests struct {
-	queue  []executor
-	params struct {
-		containerName string
-		poolname      string
-		hostname      string
-		apiUrl        string
-		dryrun        bool
-	}
+	queue         []executor
+	containerName string
+	poolname      string
+	hostname      string
+	apiUrl        string
+	dryrun        bool
 }
 
 type (
@@ -70,23 +68,23 @@ type containerInfo struct {
 }
 
 func (r *Requests) SetContainerName(containerName string) {
-	r.params.containerName = containerName
+	r.containerName = containerName
 }
 
 func (r *Requests) SetHostname(hostname string) {
-	r.params.hostname = hostname
+	r.hostname = hostname
 }
 
 func (r *Requests) SetPoolname(poolname string) {
-	r.params.poolname = poolname
+	r.poolname = poolname
 }
 
 func (r *Requests) SetDryrun(dryrun bool) {
-	r.params.dryrun = true
+	r.dryrun = true
 }
 
 func (r *Requests) SetApiUrl(apiUrl string) {
-	r.params.apiUrl = apiUrl
+	r.apiUrl = apiUrl
 }
 
 func (r *Requests) Run(
@@ -95,7 +93,7 @@ func (r *Requests) Run(
 	doneChan chan int) {
 
 	for _, request := range r.queue {
-		if r.params.dryrun == true {
+		if r.dryrun == true {
 			resChan <- fmt.Sprintf("%s", request)
 			continue
 		}
@@ -384,7 +382,7 @@ func (r *Requests) EnqueueCreateRequest() {
 	request := &createRequest{}
 	request.Method = "POST"
 
-	if r.params.poolname != "" {
+	if r.poolname != "" {
 		request.Url = r.getUrl(apiCreateInsidePoolRequestUrl)
 	} else {
 		request.Url = r.getUrl(apiCreateRequestUrl)
@@ -440,7 +438,7 @@ func (r *Requests) EnqueueDeleteRequest() {
 }
 
 func (r *Requests) EnqueueListRequest() {
-	if r.params.hostname == "" {
+	if r.hostname == "" {
 		r.enqueueAllHostsContainersListRequest()
 	} else {
 		r.enqueueOneHostContainersListRequest()
@@ -476,13 +474,13 @@ func (r *Requests) EnqueueListPoolsRequest() {
 }
 
 func (r *Requests) getUrl(url string) string {
-	url = strings.Replace(url, ":cid", r.params.containerName, 1)
-	url = strings.Replace(url, ":poolid", r.params.poolname, 1)
-	url = strings.Replace(url, ":hid", r.params.hostname, 1)
+	url = strings.Replace(url, ":cid", r.containerName, 1)
+	url = strings.Replace(url, ":poolid", r.poolname, 1)
+	url = strings.Replace(url, ":hid", r.hostname, 1)
 
 	apiUrl := apiUrlDefault
-	if r.params.apiUrl != "" {
-		apiUrl = r.params.apiUrl
+	if r.apiUrl != "" {
+		apiUrl = r.apiUrl
 	}
 
 	return apiUrl + apiVersion + url
