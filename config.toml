@@ -1,3 +1,2 @@
-[api]
-base_url = "http://lxbox.host.s:8081/"
-#base_url = "http://container.s:8081/"
+api_url = "http://lxbox.host.s:8081/"
+#api_url = "http://container.s:8081/"

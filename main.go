@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 
@@ -16,8 +15,7 @@ var (
 )
 
 const (
-	version        = "0.1"
-	startStopError = "Cannot start and stop container simultaneously (-ST given)"
+	version = "0.1"
 )
 
 var usage = `heaverc, the heaverd-ng client
@@ -88,7 +86,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		apiBaseUrl, err := config.GetString("api", "base_url")
+		apiBaseUrl, err := config.GetString("api_url")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -164,10 +162,6 @@ func main() {
 }
 
 func checkArgs(args map[string]interface{}) error {
-	if args["-S"] != false && args["-T"] != false {
-		return errors.New(startStopError)
-	}
-
 	return nil
 }
 
