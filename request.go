@@ -90,7 +90,8 @@ func (r *Requests) SetApiUrl(apiUrl string) {
 func (r *Requests) Run(
 	resChan chan string,
 	errChan chan error,
-	doneChan chan int) {
+	doneChan chan int,
+) {
 
 	for _, request := range r.queue {
 		if r.dryrun == true {
@@ -354,7 +355,8 @@ func (r listPoolsRequest) Execute() (string, error) {
 func execute(
 	url string,
 	method string,
-	params map[string]interface{}) (*http.Response, error) {
+	params map[string]interface{},
+) (*http.Response, error) {
 
 	switch method {
 	case "GET":
