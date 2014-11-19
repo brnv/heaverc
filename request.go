@@ -11,8 +11,7 @@ import (
 )
 
 const (
-	//apiBaseUrlDefault             = "http://container.s:8081/"
-	apiBaseUrlDefault             = "http://lxbox.host.s:8081/"
+	apiUrlDefault                 = "http://localhost:8081/"
 	apiVersion                    = "v2"
 	apiStartRequestUrl            = "/c/:cid/start"
 	apiCreateRequestUrl           = "/c/:cid"
@@ -23,18 +22,18 @@ const (
 	apiOneHostInfoRequestUrl      = "/h/:hid/stats"
 )
 
-type request interface {
+type executor interface {
 	Execute() (string, error)
 }
 
 type Requests struct {
-	queue  []request
-	Params struct {
-		ContainerName string
-		Poolname      string
-		Hostname      string
-		ApiBaseUrl    string
-		DryRun        bool
+	queue  []executor
+	params struct {
+		containerName string
+		poolname      string
+		hostname      string
+		apiUrl        string
+		dryrun        bool
 	}
 }
 
@@ -70,13 +69,33 @@ type containerInfo struct {
 	Ip     string `json:"ip"`
 }
 
+func (r *Requests) SetContainerName(containerName string) {
+	r.params.containerName = containerName
+}
+
+func (r *Requests) SetHostname(hostname string) {
+	r.params.hostname = hostname
+}
+
+func (r *Requests) SetPoolname(poolname string) {
+	r.params.poolname = poolname
+}
+
+func (r *Requests) SetDryrun(dryrun bool) {
+	r.params.dryrun = true
+}
+
+func (r *Requests) SetApiUrl(apiUrl string) {
+	r.params.apiUrl = apiUrl
+}
+
 func (r *Requests) Run(
 	resChan chan string,
 	errChan chan error,
 	doneChan chan int) {
 
 	for _, request := range r.queue {
-		if r.Params.DryRun == true {
+		if r.params.dryrun == true {
 			resChan <- fmt.Sprintf("%s", request)
 			continue
 		}
@@ -365,7 +384,7 @@ func (r *Requests) EnqueueCreateRequest() {
 	request := &createRequest{}
 	request.Method = "POST"
 
-	if r.Params.Poolname != "" {
+	if r.params.poolname != "" {
 		request.Url = r.getUrl(apiCreateInsidePoolRequestUrl)
 	} else {
 		request.Url = r.getUrl(apiCreateRequestUrl)
@@ -421,7 +440,7 @@ func (r *Requests) EnqueueDeleteRequest() {
 }
 
 func (r *Requests) EnqueueListRequest() {
-	if r.Params.Hostname == "" {
+	if r.params.hostname == "" {
 		r.enqueueAllHostsContainersListRequest()
 	} else {
 		r.enqueueOneHostContainersListRequest()
@@ -457,16 +476,16 @@ func (r *Requests) EnqueueListPoolsRequest() {
 }
 
 func (r *Requests) getUrl(url string) string {
-	url = strings.Replace(url, ":cid", r.Params.ContainerName, 1)
-	url = strings.Replace(url, ":poolid", r.Params.Poolname, 1)
-	url = strings.Replace(url, ":hid", r.Params.Hostname, 1)
+	url = strings.Replace(url, ":cid", r.params.containerName, 1)
+	url = strings.Replace(url, ":poolid", r.params.poolname, 1)
+	url = strings.Replace(url, ":hid", r.params.hostname, 1)
 
-	apiBaseUrl := apiBaseUrlDefault
-	if r.Params.ApiBaseUrl != "" {
-		apiBaseUrl = r.Params.ApiBaseUrl
+	apiUrl := apiUrlDefault
+	if r.params.apiUrl != "" {
+		apiUrl = r.params.apiUrl
 	}
 
-	return apiBaseUrl + apiVersion + url
+	return apiUrl + apiVersion + url
 }
 
 func formatToString(strings []string) string {

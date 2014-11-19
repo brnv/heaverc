@@ -15,7 +15,8 @@ var (
 )
 
 const (
-	version = "0.1"
+	version           = "0.1"
+	defaultConfigFile = "/etc/heaverc/config.toml"
 )
 
 var usage = `heaverc, the heaverd-ng client
@@ -71,28 +72,32 @@ func main() {
 	if args["--pool"] != nil {
 		poolname = args["--pool"].(string)
 	}
+
 	requestsChain := &Requests{}
-	requestsChain.Params.ContainerName = containerName
-	requestsChain.Params.Hostname = hostname
-	requestsChain.Params.Poolname = poolname
+
+	requestsChain.SetContainerName(containerName)
+	requestsChain.SetHostname(hostname)
+	requestsChain.SetPoolname(poolname)
 
 	if args["-N"] != false {
-		requestsChain.Params.DryRun = true
+		requestsChain.SetDryrun(true)
 	}
 
-	if args["--config"] != nil {
-		config, err := getConfig(string(args["--config"].(string)))
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		apiBaseUrl, err := config.GetString("api_url")
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		requestsChain.Params.ApiBaseUrl = apiBaseUrl
+	if args["--config"] == nil {
+		args["--config"] = defaultConfigFile
 	}
+
+	config, err := getConfig(string(args["--config"].(string)))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	apiUrl, err := config.GetString("api_url")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	requestsChain.SetApiUrl(apiUrl)
 
 	if args["-C"] != false {
 		requestsChain.EnqueueCreateRequest()
@@ -134,7 +139,7 @@ func main() {
 		requestsChain.SetRawKeyParam(args["--raw-key"].(string))
 	}
 
-	err := checkArgs(args)
+	err = checkArgs(args)
 	if err != nil {
 		log.Fatal(err)
 	}
