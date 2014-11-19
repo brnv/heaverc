@@ -56,15 +56,15 @@ type (
 )
 
 type heaverdJsonResponse struct {
-	Err string          `json:"error"`
-	Msg json.RawMessage `json:"msg"`
+	Error string
+	Msg   json.RawMessage
 }
 
 type containerInfo struct {
-	Name   string `json:"name"`
-	Host   string `json:"host"`
-	Status string `json:"status"`
-	Ip     string `json:"ip"`
+	Name   string
+	Host   string
+	Status string
+	Ip     string
 }
 
 func (r *Requests) SetContainerName(containerName string) {
@@ -135,8 +135,8 @@ func (r *createRequest) Execute() (string, error) {
 		return "", err
 	}
 
-	if jsonResp.Err != "" {
-		return "", errors.New(jsonResp.Err)
+	if jsonResp.Error != "" {
+		return "", errors.New(jsonResp.Error)
 	}
 
 	c := containerInfo{}
@@ -224,7 +224,7 @@ func (r deleteRequest) Execute() (string, error) {
 			return "", err
 		}
 
-		return "", errors.New(jsonResp.Err)
+		return "", errors.New(jsonResp.Error)
 	}
 
 	return "", nil
