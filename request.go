@@ -20,6 +20,12 @@ const (
 	apiDeleteRequestUrl           = "/c/:cid"
 	apiHostsInfoRequestUrl        = "/h"
 	apiOneHostInfoRequestUrl      = "/h/:hid/stats"
+
+	MessageContainerStarted   = "Container started"
+	MessageContainerStopped   = "Container stopped"
+	MessageContainerDestroyed = "Container destroyed"
+
+	ErrorNoSuchContainer = "No such container"
 )
 
 type executor interface {
@@ -115,17 +121,15 @@ func (r *createRequest) Execute() (string, error) {
 		return "", err
 	}
 
-	resp, err := execute(r.Url,
+	raw, err := rawResponse(
+		r.Url,
 		r.Method,
 		map[string]interface{}{
 			"image": []string{r.image},
 			"key":   key,
-		})
-	if err != nil {
-		return "", err
-	}
+		},
+	)
 
-	raw, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -174,10 +178,10 @@ func (r startRequest) Execute() (string, error) {
 
 	switch resp.StatusCode {
 	case 204:
-		return "Container started", nil
+		return MessageContainerStarted, nil
 
 	case 404:
-		return "", errors.New("No such container")
+		return "", errors.New(ErrorNoSuchContainer)
 	}
 
 	return "", nil
@@ -191,10 +195,10 @@ func (r stopRequest) Execute() (string, error) {
 
 	switch resp.StatusCode {
 	case 204:
-		return "Container stopped", nil
+		return MessageContainerStopped, nil
 
 	case 404:
-		return "", errors.New("No such container")
+		return "", errors.New(ErrorNoSuchContainer)
 	}
 
 	return "", nil
@@ -208,10 +212,10 @@ func (r deleteRequest) Execute() (string, error) {
 
 	switch resp.StatusCode {
 	case 204:
-		return "Container destroyed", nil
+		return MessageContainerDestroyed, nil
 
 	case 404:
-		return "", errors.New("No such container")
+		return "", errors.New(ErrorNoSuchContainer)
 
 	case 409:
 		raw, err := ioutil.ReadAll(resp.Body)
@@ -232,12 +236,7 @@ func (r deleteRequest) Execute() (string, error) {
 }
 
 func (r listAllHostsContainersRequest) Execute() (string, error) {
-	resp, err := execute(r.Url, r.Method, nil)
-	if err != nil {
-		return "", err
-	}
-
-	raw, err := ioutil.ReadAll(resp.Body)
+	raw, err := rawResponse(r.Url, r.Method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -266,12 +265,7 @@ func (r listAllHostsContainersRequest) Execute() (string, error) {
 }
 
 func (r listOneHostContainersRequest) Execute() (string, error) {
-	resp, err := execute(r.Url, r.Method, nil)
-	if err != nil {
-		return "", err
-	}
-
-	raw, err := ioutil.ReadAll(resp.Body)
+	raw, err := rawResponse(r.Url, r.Method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -297,12 +291,7 @@ func (r listOneHostContainersRequest) Execute() (string, error) {
 }
 
 func (r listHostsRequest) Execute() (string, error) {
-	resp, err := execute(r.Url, r.Method, nil)
-	if err != nil {
-		return "", err
-	}
-
-	raw, err := ioutil.ReadAll(resp.Body)
+	raw, err := rawResponse(r.Url, r.Method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -322,12 +311,7 @@ func (r listHostsRequest) Execute() (string, error) {
 }
 
 func (r listPoolsRequest) Execute() (string, error) {
-	resp, err := execute(r.Url, r.Method, nil)
-	if err != nil {
-		return "", err
-	}
-
-	raw, err := ioutil.ReadAll(resp.Body)
+	raw, err := rawResponse(r.Url, r.Method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -378,6 +362,26 @@ func execute(
 	}
 
 	return nil, nil
+}
+
+func rawResponse(
+	url string,
+	method string,
+	params map[string]interface{},
+) ([]byte, error) {
+
+	resp, err := execute(url, method, params)
+
+	if err != nil {
+		return []byte{}, err
+	}
+
+	raw, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return raw, err
 }
 
 func (r *Requests) EnqueueCreateRequest() {
