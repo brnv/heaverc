@@ -55,6 +55,7 @@ type (
 	listAllHostsContainersRequest defaultRequest
 	listOneHostContainersRequest  defaultRequest
 	listHostsRequest              defaultRequest
+	listPoolsRequest              defaultRequest
 )
 
 type heaverdJsonResponse struct {
@@ -302,6 +303,37 @@ func (r listHostsRequest) Execute() (string, error) {
 	return formatToString(hostsListStringed), nil
 }
 
+func (r listPoolsRequest) Execute() (string, error) {
+	resp, err := execute(r.Url, r.Method, nil)
+	if err != nil {
+		return "", err
+	}
+
+	raw, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	hostsList := map[string]struct {
+		Pools []string
+	}{}
+	err = json.Unmarshal(raw, &hostsList)
+	if err != nil {
+		return "", err
+	}
+
+	poolListStringed := []string{}
+	for _, host := range hostsList {
+		for _, p := range host.Pools {
+			poolListStringed = append(poolListStringed,
+				fmt.Sprintf("%v", p))
+		}
+
+	}
+
+	return formatToString(poolListStringed), nil
+}
+
 func execute(
 	url string,
 	method string,
@@ -412,6 +444,13 @@ func (r *Requests) enqueueOneHostContainersListRequest() {
 
 func (r *Requests) EnqueueListHostsRequest() {
 	request := listHostsRequest{}
+	request.Method = "GET"
+	request.Url = r.getUrl(apiHostsInfoRequestUrl)
+	r.queue = append(r.queue, request)
+}
+
+func (r *Requests) EnqueueListPoolsRequest() {
+	request := listPoolsRequest{}
 	request.Method = "GET"
 	request.Url = r.getUrl(apiHostsInfoRequestUrl)
 	r.queue = append(r.queue, request)

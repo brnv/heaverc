@@ -23,26 +23,37 @@ const (
 var usage = `heaverc, the heaverd-ng client
 
 	Usage:
-	heaverc [-h] [-S] [-C] [-T] [-D] [-L] [-H] [-N]
-		[-n NAME] [-i IMAGE] [--host HOST] [-k KEY]
-		[--raw-key RAW_KEY] [--pool POOL][--config=<path>]
+	heaverc [-h] [-S] [-C] [-T] [-D] [-L] [-H] [-P] [-N]
+		[-n <name>] [-i <image>] [--host <hostname>] [-k <key_path>]
+		[--raw-key <rsa_key>] [--pool <poolname>][--config=<path>]
+
+	heaverc -h | --help
+	heaverc -Cn <name> -i <image> -i ...
+	heaverc -Cn <name> -i <image> -k <file_path>
+	heaverc -Cn <name> -i <image> --pool <poolname>
+	heaverc -Sn <name>
+	heaverc -Tn <name>
+	heaverc -TDn <name> -N
+	heaverc -L --host <hostname>
+	heaverc -H
 
 	Options:
-	-h|--help		Show this help.
-	-S|--start		Start container.
-	-C|--create		Create container.
-	-T|--stop		Stop container.
-	-D|--destroy		Destroy  container.
-	-L|--list		List containers.
-	-H|--host-list		List hosts.
-	-N|--dryrun		Don't touch anything. report what will be done.
-	-n NAME, --name NAME	Name of container.
-	-i IMAGE, --image IMAGE	Image(s) for container.
-	--host HOST		Host to operate on.
-	--pool POOL		Pool to create container on.
-	-k KEY, --key KEY	Public ssh key (will be added to root's auhorized keys).
-	--raw-key RAW_KEY	Public ssh key as string.
-	--config=<path>		Configuration file.
+	-h|--help                       Show this help.
+	-S|--start                      Start container.
+	-C|--create                     Create container.
+	-T|--stop                       Stop container.
+	-D|--destroy                    Destroy  container.
+	-L|--list                       List containers.
+	-H|--host-list                  List hosts.
+	-P|--pool-list                  List pools.
+	-N|--dryrun                     Don't touch anything. report what will be done.
+	-n <name>, --name <name>N       Name of container.
+	-i <image>, --image  <image>    Image(s) for container.
+	--host <hostname>               Host to operate on.
+	--pool <poolname>               Pool to create container on.
+	-k <key_path>, --key <key_path> Public ssh key (will be added to root's auhorized keys).
+	--raw-key <rsa_key>             Public ssh key as string.
+	--config=<path>                 Configuration file.
 `
 
 func main() {
@@ -107,6 +118,10 @@ func main() {
 
 	if args["-H"] != false {
 		requestsChain.EnqueueListHostsRequest()
+	}
+
+	if args["-P"] != false {
+		requestsChain.EnqueueListPoolsRequest()
 	}
 
 	if args["--image"] != nil {
