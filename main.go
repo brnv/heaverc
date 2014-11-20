@@ -100,43 +100,55 @@ func main() {
 	requestsChain.SetApiUrl(apiUrl)
 
 	if args["-C"] != false {
-		requestsChain.EnqueueCreateRequest()
+		image := ""
+		key := ""
+		rawkey := ""
+
+		if args["--image"] != nil {
+			image = args["--image"].(string)
+		}
+
+		if args["--key"] != nil {
+			key = args["--key"].(string)
+		}
+
+		if args["--raw-key"] != nil {
+			rawkey = args["--raw-key"].(string)
+		}
+
+		requestsChain.Enqueue(createRequest{
+			Image:  image,
+			Key:    key,
+			Rawkey: rawkey,
+		})
 	}
 
 	if args["-S"] != false {
-		requestsChain.EnqueueStartRequest()
+		requestsChain.Enqueue(startRequest{})
 	}
 
 	if args["-T"] != false {
-		requestsChain.EnqueueStopRequest()
+		requestsChain.Enqueue(stopRequest{})
 	}
 
 	if args["-D"] != false {
-		requestsChain.EnqueueDeleteRequest()
+		requestsChain.Enqueue(deleteRequest{})
 	}
 
 	if args["-L"] != false {
-		requestsChain.EnqueueListRequest()
+		if hostname == "" {
+			requestsChain.Enqueue(listAllHostsContainersRequest{})
+		} else {
+			requestsChain.Enqueue(listOneHostContainersRequest{})
+		}
 	}
 
 	if args["-H"] != false {
-		requestsChain.EnqueueListHostsRequest()
+		requestsChain.Enqueue(listHostsRequest{})
 	}
 
 	if args["-P"] != false {
-		requestsChain.EnqueueListPoolsRequest()
-	}
-
-	if args["--image"] != nil {
-		requestsChain.SetImageParam(args["--image"].(string))
-	}
-
-	if args["--key"] != nil {
-		requestsChain.SetKeyParam(args["--key"].(string))
-	}
-
-	if args["--raw-key"] != nil {
-		requestsChain.SetRawKeyParam(args["--raw-key"].(string))
+		requestsChain.Enqueue(listPoolsRequest{})
 	}
 
 	err = checkArgs(args)

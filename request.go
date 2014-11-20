@@ -43,14 +43,14 @@ type Requests struct {
 
 type (
 	defaultRequest struct {
-		Method string
-		Url    string
+		method string
+		url    string
 	}
 	createRequest struct {
 		defaultRequest
-		image  string
-		key    string
-		rawkey string
+		Image  string
+		Key    string
+		Rawkey string
 	}
 	startRequest                  defaultRequest
 	stopRequest                   defaultRequest
@@ -115,17 +115,17 @@ func (r *Requests) Run(
 	doneChan <- 1
 }
 
-func (r *createRequest) Execute() (string, error) {
+func (r createRequest) Execute() (string, error) {
 	key, err := r.getKey()
 	if err != nil {
 		return "", err
 	}
 
 	raw, err := rawResponse(
-		r.Url,
-		r.Method,
+		r.url,
+		r.method,
 		map[string]interface{}{
-			"image": []string{r.image},
+			"image": []string{r.Image},
 			"key":   key,
 		},
 	)
@@ -154,13 +154,13 @@ func (r *createRequest) Execute() (string, error) {
 		"addresses: %v", c.Name, c.Ip), nil
 }
 
-func (r *createRequest) getKey() (string, error) {
-	if r.rawkey != "" {
-		return r.rawkey, nil
+func (r createRequest) getKey() (string, error) {
+	if r.Rawkey != "" {
+		return r.Rawkey, nil
 	}
 
-	if r.key != "" {
-		key, err := ioutil.ReadFile(r.key)
+	if r.Key != "" {
+		key, err := ioutil.ReadFile(r.Key)
 		if err != nil {
 			return "", err
 		}
@@ -171,7 +171,7 @@ func (r *createRequest) getKey() (string, error) {
 }
 
 func (r startRequest) Execute() (string, error) {
-	resp, err := execute(r.Url, r.Method, nil)
+	resp, err := execute(r.url, r.method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -188,7 +188,7 @@ func (r startRequest) Execute() (string, error) {
 }
 
 func (r stopRequest) Execute() (string, error) {
-	resp, err := execute(r.Url, r.Method, nil)
+	resp, err := execute(r.url, r.method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -205,7 +205,7 @@ func (r stopRequest) Execute() (string, error) {
 }
 
 func (r deleteRequest) Execute() (string, error) {
-	resp, err := execute(r.Url, r.Method, nil)
+	resp, err := execute(r.url, r.method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -236,7 +236,7 @@ func (r deleteRequest) Execute() (string, error) {
 }
 
 func (r listAllHostsContainersRequest) Execute() (string, error) {
-	raw, err := rawResponse(r.Url, r.Method, nil)
+	raw, err := rawResponse(r.url, r.method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -265,7 +265,7 @@ func (r listAllHostsContainersRequest) Execute() (string, error) {
 }
 
 func (r listOneHostContainersRequest) Execute() (string, error) {
-	raw, err := rawResponse(r.Url, r.Method, nil)
+	raw, err := rawResponse(r.url, r.method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -291,7 +291,7 @@ func (r listOneHostContainersRequest) Execute() (string, error) {
 }
 
 func (r listHostsRequest) Execute() (string, error) {
-	raw, err := rawResponse(r.Url, r.Method, nil)
+	raw, err := rawResponse(r.url, r.method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -311,7 +311,7 @@ func (r listHostsRequest) Execute() (string, error) {
 }
 
 func (r listPoolsRequest) Execute() (string, error) {
-	raw, err := rawResponse(r.Url, r.Method, nil)
+	raw, err := rawResponse(r.url, r.method, nil)
 	if err != nil {
 		return "", err
 	}
@@ -384,99 +384,45 @@ func rawResponse(
 	return raw, err
 }
 
-func (r *Requests) EnqueueCreateRequest() {
-	request := &createRequest{}
-	request.Method = "POST"
-
-	if r.poolname != "" {
-		request.Url = r.getUrl(apiCreateInsidePoolRequestUrl)
-	} else {
-		request.Url = r.getUrl(apiCreateRequestUrl)
-	}
-
-	r.queue = append(r.queue, request)
-}
-
-func (r *Requests) SetImageParam(image string) {
-	for _, request := range r.queue {
-		if v, ok := request.(*createRequest); ok {
-			v.image = image
+func (r *Requests) Enqueue(request executor) {
+	switch req := request.(type) {
+	case createRequest:
+		req.method = "POST"
+		if r.poolname != "" {
+			req.url = r.getUrl(apiCreateInsidePoolRequestUrl)
+		} else {
+			req.url = r.getUrl(apiCreateRequestUrl)
 		}
+		r.queue = append(r.queue, req)
+	case startRequest:
+		req.method = "POST"
+		req.url = r.getUrl(apiStartRequestUrl)
+		r.queue = append(r.queue, req)
+	case stopRequest:
+		req.method = "POST"
+		req.url = r.getUrl(apiStopRequestUrl)
+		r.queue = append(r.queue, req)
+	case deleteRequest:
+		req.method = "DELETE"
+		req.url = r.getUrl(apiDeleteRequestUrl)
+		r.queue = append(r.queue, req)
+	case listAllHostsContainersRequest:
+		req.method = "GET"
+		req.url = r.getUrl(apiHostsInfoRequestUrl)
+		r.queue = append(r.queue, req)
+	case listOneHostContainersRequest:
+		req.method = "GET"
+		req.url = r.getUrl(apiOneHostInfoRequestUrl)
+		r.queue = append(r.queue, req)
+	case listHostsRequest:
+		req.method = "GET"
+		req.url = r.getUrl(apiHostsInfoRequestUrl)
+		r.queue = append(r.queue, req)
+	case listPoolsRequest:
+		req.method = "GET"
+		req.url = r.getUrl(apiHostsInfoRequestUrl)
+		r.queue = append(r.queue, req)
 	}
-}
-
-func (r *Requests) SetKeyParam(key string) {
-	for _, request := range r.queue {
-		if v, ok := request.(*createRequest); ok {
-			v.key = key
-		}
-	}
-}
-
-func (r *Requests) SetRawKeyParam(rawkey string) {
-	for _, request := range r.queue {
-		if v, ok := request.(*createRequest); ok {
-			v.rawkey = rawkey
-		}
-	}
-}
-
-func (r *Requests) EnqueueStartRequest() {
-	request := startRequest{}
-	request.Method = "POST"
-	request.Url = r.getUrl(apiStartRequestUrl)
-	r.queue = append(r.queue, request)
-}
-
-func (r *Requests) EnqueueStopRequest() {
-	request := stopRequest{}
-	request.Method = "POST"
-	request.Url = r.getUrl(apiStopRequestUrl)
-
-	r.queue = append(r.queue, request)
-}
-
-func (r *Requests) EnqueueDeleteRequest() {
-	request := deleteRequest{}
-	request.Method = "DELETE"
-	request.Url = r.getUrl(apiDeleteRequestUrl)
-	r.queue = append(r.queue, request)
-}
-
-func (r *Requests) EnqueueListRequest() {
-	if r.hostname == "" {
-		r.enqueueAllHostsContainersListRequest()
-	} else {
-		r.enqueueOneHostContainersListRequest()
-	}
-}
-
-func (r *Requests) enqueueAllHostsContainersListRequest() {
-	request := listAllHostsContainersRequest{}
-	request.Method = "GET"
-	request.Url = r.getUrl(apiHostsInfoRequestUrl)
-	r.queue = append(r.queue, request)
-}
-
-func (r *Requests) enqueueOneHostContainersListRequest() {
-	request := listOneHostContainersRequest{}
-	request.Method = "GET"
-	request.Url = r.getUrl(apiOneHostInfoRequestUrl)
-	r.queue = append(r.queue, request)
-}
-
-func (r *Requests) EnqueueListHostsRequest() {
-	request := listHostsRequest{}
-	request.Method = "GET"
-	request.Url = r.getUrl(apiHostsInfoRequestUrl)
-	r.queue = append(r.queue, request)
-}
-
-func (r *Requests) EnqueueListPoolsRequest() {
-	request := listPoolsRequest{}
-	request.Method = "GET"
-	request.Url = r.getUrl(apiHostsInfoRequestUrl)
-	r.queue = append(r.queue, request)
 }
 
 func (r *Requests) getUrl(url string) string {
