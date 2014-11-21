@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -249,12 +250,24 @@ func (r listAllHostsContainersRequest) Execute() (string, error) {
 		return "", err
 	}
 
+	maxNameLen := 0
+	for _, host := range hostsList {
+		for _, c := range host.Containers {
+			if len(c.Name) > maxNameLen {
+				maxNameLen = len(c.Name)
+			}
+
+		}
+	}
+
 	containersListStringed := []string{}
+
 	for _, host := range hostsList {
 		for _, c := range host.Containers {
 			containersListStringed = append(containersListStringed,
-				fmt.Sprintf("%s: %s, ip: %s",
+				fmt.Sprintf("%"+strconv.Itoa(maxNameLen)+"s (on %s): %s, ip: %s",
 					c.Name,
+					c.Host,
 					c.Status,
 					c.Ip))
 		}
