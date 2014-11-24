@@ -397,7 +397,6 @@ func execute(
 	method string,
 	params map[string]interface{},
 ) (*http.Response, error) {
-
 	switch method {
 	case "GET":
 		resp, err := http.Get(url)

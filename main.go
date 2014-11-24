@@ -23,8 +23,8 @@ var usage = `heaverc, the heaverd-ng client
 
 	Usage:
 	heaverc [-h] [-S] [-C] [-T] [-D] [-L] [-H] [-P] [-N]
-		[-n <name>] [-i <image>] [--host <hostname>] [-k <key_path>]
-		[--raw-key <rsa_key>] [--pool <poolname>][--config=<path>]
+		[-n <name>] [-i <image>] [--host <hostname>] [-k <file_path>]
+		[--raw-key <rsa_key>] [--pool <poolname>] [--config=<path>]
 
 	heaverc -h | --help
 	heaverc -Cn <name> -i <image> -i ...
@@ -37,15 +37,15 @@ var usage = `heaverc, the heaverd-ng client
 	heaverc -H
 
 	Options:
-	-h|--help                       Show this help.
-	-S|--start                      Start container.
-	-C|--create                     Create container.
-	-T|--stop                       Stop container.
-	-D|--destroy                    Destroy  container.
-	-L|--list                       List containers.
-	-H|--host-list                  List hosts.
-	-P|--pool-list                  List pools.
-	-N|--dryrun                     Don't touch anything. report what will be done.
+	-h, --help                      Show this help.
+	-S, --start                     Start container.
+	-C, --create                    Create container.
+	-T, --stop                      Stop container.
+	-D, --destroy                   Destroy  container.
+	-L, --list                      List containers.
+	-H, --host-list                 List hosts.
+	-P, --pool-list                 List pools.
+	-N, --dryrun                    Don't touch anything. report what will be done.
 	-n <name>, --name <name>N       Name of container.
 	-i <image>, --image  <image>    Image(s) for container.
 	--host <hostname>               Host to operate on.
@@ -79,7 +79,7 @@ func main() {
 	requestsChain.SetHostname(hostname)
 	requestsChain.SetPoolname(poolname)
 
-	if args["-N"] != false {
+	if args["--dryrun"] != false {
 		requestsChain.SetDryrun(true)
 	}
 
@@ -99,7 +99,7 @@ func main() {
 
 	requestsChain.SetApiUrl(apiUrl)
 
-	if args["-C"] != false {
+	if args["--create"] != false {
 		image := ""
 		key := ""
 		rawkey := ""
@@ -123,19 +123,19 @@ func main() {
 		})
 	}
 
-	if args["-S"] != false {
+	if args["--start"] != false {
 		requestsChain.Enqueue(startRequest{})
 	}
 
-	if args["-T"] != false {
+	if args["--stop"] != false {
 		requestsChain.Enqueue(stopRequest{})
 	}
 
-	if args["-D"] != false {
+	if args["--destroy"] != false {
 		requestsChain.Enqueue(deleteRequest{})
 	}
 
-	if args["-L"] != false {
+	if args["--list"] != false {
 		if hostname == "" {
 			requestsChain.Enqueue(listAllHostsContainersRequest{})
 		} else {
@@ -143,11 +143,11 @@ func main() {
 		}
 	}
 
-	if args["-H"] != false {
+	if args["--host-list"] != false {
 		requestsChain.Enqueue(listHostsRequest{})
 	}
 
-	if args["-P"] != false {
+	if args["--pool-list"] != false {
 		requestsChain.Enqueue(listPoolsRequest{})
 	}
 
