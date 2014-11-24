@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -99,7 +100,6 @@ func (r *Requests) Run(
 	errChan chan error,
 	doneChan chan int,
 ) {
-
 	for _, request := range r.queue {
 		if r.dryrun == true {
 			resChan <- fmt.Sprintf("%s", request)
@@ -250,31 +250,21 @@ func (r listAllHostsContainersRequest) Execute() (string, error) {
 		return "", err
 	}
 
-	maxNameLen := 0
-	for _, host := range hostsList {
-		for _, c := range host.Containers {
-			if len(c.Name) > maxNameLen {
-				maxNameLen = len(c.Name)
-			}
+	keys := []string{}
+	for k := range hostsList {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
 
-		}
+	list := []string{}
+
+	for _, hostname := range keys {
+		list = append(list, getContainersStringedArray(
+			hostsList[hostname].Containers)...,
+		)
 	}
 
-	containersListStringed := []string{}
-
-	for _, host := range hostsList {
-		for _, c := range host.Containers {
-			containersListStringed = append(containersListStringed,
-				fmt.Sprintf("%"+strconv.Itoa(maxNameLen)+"s (on %s): %s, ip: %s",
-					c.Name,
-					c.Host,
-					c.Status,
-					c.Ip))
-		}
-
-	}
-
-	return formatToString(containersListStringed), nil
+	return formatToRightJustifiedString(list), nil
 }
 
 func (r listOneHostContainersRequest) Execute() (string, error) {
@@ -291,16 +281,9 @@ func (r listOneHostContainersRequest) Execute() (string, error) {
 		return "", err
 	}
 
-	containersListStringed := []string{}
-	for _, c := range host.Containers {
-		containersListStringed = append(containersListStringed,
-			fmt.Sprintf("%s: %s, ip: %s",
-				c.Name,
-				c.Status,
-				c.Ip))
-	}
+	list := getContainersStringedArray(host.Containers)
 
-	return formatToString(containersListStringed), nil
+	return formatToRightJustifiedString(list), nil
 }
 
 func (r listHostsRequest) Execute() (string, error) {
@@ -309,18 +292,71 @@ func (r listHostsRequest) Execute() (string, error) {
 		return "", err
 	}
 
-	hostsList := map[string]interface{}{}
+	hostsList := map[string]struct {
+		CpuCapacity int64
+		RamCapacity int64
+		Containers  map[string]containerInfo
+	}{}
 	err = json.Unmarshal(raw, &hostsList)
 	if err != nil {
 		return "", err
 	}
 
-	hostsListStringed := []string{}
-	for hostname, _ := range hostsList {
-		hostsListStringed = append(hostsListStringed, hostname)
+	keys := []string{}
+	for k := range hostsList {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	list := []string{}
+
+	for _, hostname := range keys {
+		list = append(list,
+			fmt.Sprintf(
+				"%s\n%s\nboxes:",
+				hostname,
+				strings.Repeat("-", len(hostname)),
+			))
+
+		list = append(list,
+			formatToRightJustifiedString(
+				getContainersStringedArray(
+					hostsList[hostname].Containers),
+			))
+
+		list = append(list, "\n")
 	}
 
-	return formatToString(hostsListStringed), nil
+	return formatToSingleString(list), nil
+}
+
+func getContainersStringedArray(containers map[string]containerInfo) []string {
+	keys := []string{}
+	for k := range containers {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	maxNameLen := 0
+	for _, c := range containers {
+		if len(c.Name) > maxNameLen {
+			maxNameLen = len(c.Name)
+		}
+	}
+
+	containersListStringed := []string{}
+	for _, k := range keys {
+		containersListStringed = append(containersListStringed,
+			fmt.Sprintf(
+				"%"+strconv.Itoa(maxNameLen)+"s (on %s): %8s, ip: %15s",
+				containers[k].Name,
+				containers[k].Host,
+				containers[k].Status,
+				containers[k].Ip,
+			))
+	}
+
+	return containersListStringed
 }
 
 func (r listPoolsRequest) Execute() (string, error) {
@@ -337,16 +373,23 @@ func (r listPoolsRequest) Execute() (string, error) {
 		return "", err
 	}
 
-	poolListStringed := []string{}
+	pools := []string{}
+
 	for _, host := range hostsList {
 		for _, p := range host.Pools {
-			poolListStringed = append(poolListStringed,
-				fmt.Sprintf("%v", p))
+			app := true
+			for _, poolname := range pools {
+				if poolname == p {
+					app = false
+				}
+			}
+			if app {
+				pools = append(pools, p)
+			}
 		}
-
 	}
 
-	return formatToString(poolListStringed), nil
+	return formatToSingleString(pools), nil
 }
 
 func execute(
@@ -382,7 +425,6 @@ func rawResponse(
 	method string,
 	params map[string]interface{},
 ) ([]byte, error) {
-
 	resp, err := execute(url, method, params)
 
 	if err != nil {
@@ -451,10 +493,35 @@ func (r *Requests) getUrl(url string) string {
 	return apiUrl + apiVersion + url
 }
 
-func formatToString(strings []string) string {
+func formatToRightJustifiedString(strings []string) string {
+	maxNameLen := 0
+	for _, s := range strings {
+		if len(s) > maxNameLen {
+			maxNameLen = len(s)
+		}
+	}
+
 	res := ""
 	for i, str := range strings {
-		res += str
+		res += fmt.Sprintf("%"+strconv.Itoa(maxNameLen)+"s", str)
+		if i < len(strings)-1 {
+			res += "\n"
+		}
+	}
+
+	return res
+}
+
+func formatToSingleString(strings []string) string {
+	keys := []int{}
+	for k := range strings {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+
+	res := ""
+	for i := range keys {
+		res += strings[i]
 		if i < len(strings)-1 {
 			res += "\n"
 		}
