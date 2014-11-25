@@ -16,7 +16,7 @@ var (
 
 const (
 	version           = "0.1"
-	defaultConfigFile = "/etc/heaverc/config.toml"
+	defaultConfigFile = "/etc/heaverc-ng/config.toml"
 )
 
 var usage = `heaverc, the heaverd-ng client
@@ -52,7 +52,7 @@ var usage = `heaverc, the heaverd-ng client
 	--pool <poolname>               Pool to create container on.
 	-k <key_path>, --key <key_path> Public ssh key (will be added to root's auhorized keys).
 	--raw-key <rsa_key>             Public ssh key as string.
-	--config=<path>                 Configuration file.
+	--config=<path>                 Configuration file [default: /etc/heaverc-ng/config.toml].
 `
 
 func main() {
@@ -170,6 +170,7 @@ func main() {
 
 		case err := <-errChan:
 			fmt.Print(err)
+			fmt.Print("\n")
 
 		case <-doneChan:
 			fmt.Print("OK\n")

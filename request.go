@@ -322,7 +322,7 @@ func (r listHostsRequest) Execute() (string, error) {
 			formatToRightJustifiedString(
 				getContainersStringedArray(
 					hostsList[hostname].Containers),
-			))
+			)+"\n")
 	}
 
 	return formatToSingleString(list), nil
