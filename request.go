@@ -323,8 +323,6 @@ func (r listHostsRequest) Execute() (string, error) {
 				getContainersStringedArray(
 					hostsList[hostname].Containers),
 			))
-
-		list = append(list, "\n")
 	}
 
 	return formatToSingleString(list), nil

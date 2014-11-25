@@ -169,7 +169,7 @@ func main() {
 			fmt.Print("\n")
 
 		case err := <-errChan:
-			log.Fatal(err)
+			fmt.Print(err)
 
 		case <-doneChan:
 			fmt.Print("OK\n")
