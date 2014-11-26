@@ -67,6 +67,20 @@ func (request defaultRequest) String() string {
 	return fmt.Sprintf("%s %s", request.method, request.url)
 }
 
+func (request createRequest) String() string {
+	res := fmt.Sprintf("%s %s", request.method, request.url)
+
+	res = res + fmt.Sprintf(" image=%v", request.Image)
+
+	if request.Rawkey != "" {
+		res = res + fmt.Sprintf(" key=%v", request.Rawkey)
+	} else if request.Key != "" {
+		res = res + fmt.Sprintf(" key=%v", request.Key)
+	}
+
+	return res
+}
+
 type heaverdJsonResponse struct {
 	Error string
 	Msg   json.RawMessage
