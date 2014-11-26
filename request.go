@@ -54,14 +54,18 @@ type (
 		Key    string
 		Rawkey string
 	}
-	startRequest                  defaultRequest
-	stopRequest                   defaultRequest
-	deleteRequest                 defaultRequest
-	listAllHostsContainersRequest defaultRequest
-	listOneHostContainersRequest  defaultRequest
-	listHostsRequest              defaultRequest
-	listPoolsRequest              defaultRequest
+	startRequest                  struct{ defaultRequest }
+	stopRequest                   struct{ defaultRequest }
+	deleteRequest                 struct{ defaultRequest }
+	listAllHostsContainersRequest struct{ defaultRequest }
+	listOneHostContainersRequest  struct{ defaultRequest }
+	listHostsRequest              struct{ defaultRequest }
+	listPoolsRequest              struct{ defaultRequest }
 )
+
+func (request defaultRequest) String() string {
+	return fmt.Sprintf("%s %s", request.method, request.url)
+}
 
 type heaverdJsonResponse struct {
 	Error string
