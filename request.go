@@ -151,8 +151,8 @@ func (r createRequest) Execute() (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("Created container %v with "+
-		"addresses: %v", c.Name, c.Ip), nil
+	return fmt.Sprintf("Created container %s (on %s) with "+
+		"addresses: %v", c.Name, c.Host, c.Ip), nil
 }
 
 func (r createRequest) getKey() (string, error) {
