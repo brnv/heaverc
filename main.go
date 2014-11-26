@@ -171,6 +171,7 @@ func main() {
 		case err := <-errChan:
 			fmt.Print(err)
 			fmt.Print("\n")
+			os.Exit(1)
 
 		case <-doneChan:
 			fmt.Print("OK\n")
