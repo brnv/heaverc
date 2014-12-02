@@ -22,41 +22,44 @@ const (
 var usage = `heaverc, the heaverd-ng client
 
 	Usage:
-	heaverc [-h] [-S] [-C] [-T] [-D] [-L] [-H] [-P] [-N]
-		[-n <name>] [-i <image>] [--host <hostname>] [-k <file_path>]
-		[--raw-key <rsa_key>] [--pool <poolname>] [--config=<path>]
-
+	heaverc -Cn <name> -i <image>... [--config <file_path>]
+	        [--key <path>] [--raw-key <rsa_key>] [--pool <poolname>]
+			[--dryrun]
+	heaverc -Sn <name> [--config <file_path>] [--dryrun]
+	heaverc -Tn <name> [--config <file_path>] [--dryrun]
+	heaverc -Dn <name> [--config <file_path>] [--dryrun]
+	heaverc -TDn <name> [--config <file_path>] [--dryrun]
+	heaverc -L [--host <hostname>] [--config <file_path>]
+	heaverc -H [--config <file_path>] [--dryrun]
+	heaverc -P [--config <file_path>] [--dryrun]
 	heaverc -h | --help
-	heaverc -Cn <name> -i <image> -i ...
-	heaverc -Cn <name> -i <image> -k <file_path>
-	heaverc -Cn <name> -i <image> --pool <poolname>
-	heaverc -Sn <name>
-	heaverc -Tn <name>
-	heaverc -TDn <name> -N
-	heaverc -L --host <hostname>
-	heaverc -H
 
 	Options:
 	-h, --help                      Show this help.
-	-S, --start                     Start container.
 	-C, --create                    Create container.
+	-S, --start                     Start container.
 	-T, --stop                      Stop container.
 	-D, --destroy                   Destroy  container.
 	-L, --list                      List containers.
 	-H, --host-list                 List hosts.
 	-P, --pool-list                 List pools.
 	-N, --dryrun                    Don't touch anything. report what will be done.
-	-n <name>, --name <name>N       Name of container.
+	-n <name>, --name <name>        Name of container.
 	-i <image>, --image  <image>    Image(s) for container.
 	--host <hostname>               Host to operate on.
 	--pool <poolname>               Pool to create container on.
 	-k <key_path>, --key <key_path> Public ssh key (will be added to root's auhorized keys).
 	--raw-key <rsa_key>             Public ssh key as string.
-	--config=<path>                 Configuration file [default: /etc/heaverc-ng/config.toml].
+	--config <path>                 Configuration file [default: /etc/heaverc-ng/config.toml].
 `
 
 func main() {
-	args, _ := docopt.Parse(usage, nil, true, version, false)
+	args, err := docopt.Parse(usage, nil, true, version, false)
+	if err != nil {
+		fmt.Print(err)
+		fmt.Print("\n")
+		os.Exit(1)
+	}
 
 	containerName := ""
 	if args["--name"] != nil {
@@ -100,12 +103,12 @@ func main() {
 	requestsChain.SetApiUrl(apiUrl)
 
 	if args["--create"] != false {
-		image := ""
+		images := []string{}
 		key := ""
 		rawkey := ""
 
 		if args["--image"] != nil {
-			image = args["--image"].(string)
+			images = args["--image"].([]string)
 		}
 
 		if args["--key"] != nil {
@@ -117,7 +120,7 @@ func main() {
 		}
 
 		requestsChain.Enqueue(createRequest{
-			Image:  image,
+			Images: images,
 			Key:    key,
 			Rawkey: rawkey,
 		})

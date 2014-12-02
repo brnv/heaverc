@@ -50,7 +50,7 @@ type (
 	}
 	createRequest struct {
 		defaultRequest
-		Image  string
+		Images []string
 		Key    string
 		Rawkey string
 	}
@@ -70,7 +70,9 @@ func (request defaultRequest) String() string {
 func (request createRequest) String() string {
 	res := fmt.Sprintf("%s %s", request.method, request.url)
 
-	res = res + fmt.Sprintf(" image=%v", request.Image)
+	for _, image := range request.Images {
+		res = res + fmt.Sprintf(" image=%v", image)
+	}
 
 	if request.Rawkey != "" {
 		res = res + fmt.Sprintf(" key=%v", request.Rawkey)
@@ -144,7 +146,7 @@ func (r createRequest) Execute() (string, error) {
 		r.url,
 		r.method,
 		map[string]interface{}{
-			"image": []string{r.Image},
+			"image": r.Images,
 			"key":   key,
 		},
 	)
