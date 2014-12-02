@@ -90,7 +90,7 @@ type containerInfo struct {
 	Name   string
 	Host   string
 	Status string
-	Ip     string
+	Ips    map[string][]string
 }
 
 func (r *Requests) SetContainerName(containerName string) {
@@ -169,8 +169,13 @@ func (r createRequest) Execute() (string, error) {
 		return "", err
 	}
 
+	ip := ""
+	if v, ok := c.Ips["eth0"]; ok {
+		ip = v[0]
+	}
+
 	return fmt.Sprintf("Created container %s (on %s) with "+
-		"addresses: %v", c.Name, c.Host, c.Ip), nil
+		"addresses: %v", c.Name, c.Host, ip), nil
 }
 
 func (r createRequest) getKey() (string, error) {
@@ -362,13 +367,18 @@ func getContainersStringedArray(containers map[string]containerInfo) []string {
 
 	containersListStringed := []string{}
 	for _, k := range keys {
+		ip := ""
+		if v, ok := containers[k].Ips["eth0"]; ok {
+			ip = v[0]
+		}
+
 		containersListStringed = append(containersListStringed,
 			fmt.Sprintf(
-				"%"+strconv.Itoa(maxNameLen)+"s (on %s): %8s, ip: %15s",
+				"%"+strconv.Itoa(maxNameLen)+"s (on %s): %8s, ip: %18s",
 				containers[k].Name,
 				containers[k].Host,
 				containers[k].Status,
-				containers[k].Ip,
+				ip,
 			))
 	}
 
