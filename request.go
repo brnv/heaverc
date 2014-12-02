@@ -313,9 +313,14 @@ func (r listHostsRequest) Execute() (string, error) {
 	}
 
 	hostsList := map[string]struct {
-		CpuCapacity int64
-		RamCapacity int64
-		Containers  map[string]containerInfo
+		Score        float64
+		CpuCapacity  int64
+		CpuUsage     int64
+		RamCapacity  int64
+		RamFree      int64
+		DiskCapacity int64
+		DiskFree     int64
+		Containers   map[string]containerInfo
 	}{}
 	err = json.Unmarshal(raw, &hostsList)
 	if err != nil {
@@ -333,16 +338,40 @@ func (r listHostsRequest) Execute() (string, error) {
 	for _, hostname := range keys {
 		list = append(list,
 			fmt.Sprintf(
-				"%s\n%s\nboxes:",
+				"%s\n%s",
 				hostname,
 				strings.Repeat("-", len(hostname)),
 			))
-
 		list = append(list,
-			formatToRightJustifiedString(
-				getContainersStringedArray(
-					hostsList[hostname].Containers),
-			)+"\n")
+			fmt.Sprintf(
+				"score: %f",
+				hostsList[hostname].Score,
+			))
+		list = append(list,
+			fmt.Sprintf(
+				"cpu capacity: %v%%, cpu usage: %v%%",
+				hostsList[hostname].CpuCapacity,
+				hostsList[hostname].CpuUsage,
+			))
+		list = append(list,
+			fmt.Sprintf(
+				"ram capacity: %v GiB, ram usage: %v GiB",
+				hostsList[hostname].RamCapacity/(1024*1024),
+				(hostsList[hostname].RamCapacity-hostsList[hostname].RamFree)/(1024*1024),
+			))
+		list = append(list,
+			fmt.Sprintf(
+				"disk capacity: %v GiB, disk usage: %v GiB",
+				hostsList[hostname].DiskCapacity/(1024*1024),
+				(hostsList[hostname].DiskCapacity-hostsList[hostname].DiskFree)/(1024*1024),
+			))
+		list = append(list,
+			fmt.Sprintf(
+				"boxes:\n%s\n",
+				formatToRightJustifiedString(
+					getContainersStringedArray(
+						hostsList[hostname].Containers)),
+			))
 	}
 
 	return formatToSingleString(list), nil
