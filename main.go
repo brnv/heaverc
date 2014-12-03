@@ -42,7 +42,7 @@ var usage = `heaverc, the heaverd-ng client
 	-L, --list                       List containers.
 	-H, --host-list                  List hosts.
 	-I, --pool-list                  List pools.
-	-N, --dryrun                     Don't touch anything. Report what will be done.
+	-d, --dryrun                     Don't touch anything. Report what will be done.
 	-n <name>, --name <name>         Name of container.
 	-p <poolname>, --pool <poolname> Pool to create container on.
 	-i <image>, --image <image>      Image(s) for container.
@@ -65,14 +65,14 @@ func main() {
 	}
 
 	if args["--host"] != nil {
-		requestsChain.Hostname = args["--host"].(string)
+		requestsChain.HostName = args["--host"].(string)
 	}
 
 	if args["--pool"] != nil {
-		requestsChain.Poolname = args["--pool"].(string)
+		requestsChain.PoolName = args["--pool"].(string)
 	}
 
-	requestsChain.SetDryrun(args["--dryrun"].(bool))
+	requestsChain.DryRun = args["--dryrun"].(bool)
 
 	config, err := getConfig(string(args["--config"].(string)))
 	if err != nil {
@@ -120,7 +120,7 @@ func main() {
 	}
 
 	if args["--list"].(bool) {
-		if requestsChain.Hostname == "" {
+		if requestsChain.HostName == "" {
 			requestsChain.Enqueue(listAllHostsContainersRequest{})
 		} else {
 			requestsChain.Enqueue(listOneHostContainersRequest{})
@@ -135,28 +135,18 @@ func main() {
 		requestsChain.Enqueue(listPoolsRequest{})
 	}
 
-	resChan := make(chan string)
-	errChan := make(chan error)
-	doneChan := make(chan int)
-
-	go requestsChain.Run(resChan, errChan, doneChan)
-
-	for {
-		select {
-		case r := <-resChan:
-			fmt.Print(r)
-			fmt.Print("\n")
-
-		case err := <-errChan:
-			fmt.Print(err)
-			fmt.Print("\n")
-			os.Exit(1)
-
-		case <-doneChan:
-			fmt.Print("OK\n")
-			os.Exit(0)
-		}
+	resultsCallback := func(result string) {
+		fmt.Print(result + "\n")
 	}
+
+	err = requestsChain.Run(resultsCallback)
+
+	if err != nil {
+		fmt.Print(err.Error() + "\n")
+		os.Exit(1)
+	}
+
+	fmt.Print("OK\n")
 }
 
 func getConfig(path string) (zhash.Hash, error) {

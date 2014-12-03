@@ -35,12 +35,12 @@ type executor interface {
 }
 
 type Requests struct {
-	queue         []executor
+	Queue         []executor
 	ContainerName string
-	Poolname      string
-	Hostname      string
+	PoolName      string
+	HostName      string
 	ApiUrl        string
-	dryrun        bool
+	DryRun        bool
 }
 
 type (
@@ -95,29 +95,19 @@ type containerInfo struct {
 	Ip     string
 }
 
-func (r *Requests) SetDryrun(dryrun bool) {
-	r.dryrun = dryrun
-}
-
-func (r *Requests) Run(
-	resChan chan string,
-	errChan chan error,
-	doneChan chan int,
-) {
-	for _, request := range r.queue {
-		if r.dryrun == true {
-			resChan <- fmt.Sprintf("%s", request)
+func (r *Requests) Run(callback func(string)) error {
+	for _, request := range r.Queue {
+		if r.DryRun == true {
+			callback(fmt.Sprintf("%s", request))
 			continue
 		}
-		res, err := request.Execute()
+		result, err := request.Execute()
 		if err != nil {
-			errChan <- err
-			continue
+			return err
 		}
-		resChan <- res
+		callback(result)
 	}
-
-	doneChan <- 1
+	return nil
 }
 
 func (r createRequest) Execute() (string, error) {
@@ -473,47 +463,47 @@ func (r *Requests) Enqueue(request executor) {
 	switch req := request.(type) {
 	case createRequest:
 		req.method = "POST"
-		if r.Poolname != "" {
+		if r.PoolName != "" {
 			req.url = r.getUrl(apiCreateInsidePoolRequestUrl)
 		} else {
 			req.url = r.getUrl(apiCreateRequestUrl)
 		}
-		r.queue = append(r.queue, req)
+		r.Queue = append(r.Queue, req)
 	case startRequest:
 		req.method = "POST"
 		req.url = r.getUrl(apiStartRequestUrl)
-		r.queue = append(r.queue, req)
+		r.Queue = append(r.Queue, req)
 	case stopRequest:
 		req.method = "POST"
 		req.url = r.getUrl(apiStopRequestUrl)
-		r.queue = append(r.queue, req)
+		r.Queue = append(r.Queue, req)
 	case deleteRequest:
 		req.method = "DELETE"
 		req.url = r.getUrl(apiDeleteRequestUrl)
-		r.queue = append(r.queue, req)
+		r.Queue = append(r.Queue, req)
 	case listAllHostsContainersRequest:
 		req.method = "GET"
 		req.url = r.getUrl(apiHostsInfoRequestUrl)
-		r.queue = append(r.queue, req)
+		r.Queue = append(r.Queue, req)
 	case listOneHostContainersRequest:
 		req.method = "GET"
 		req.url = r.getUrl(apiOneHostInfoRequestUrl)
-		r.queue = append(r.queue, req)
+		r.Queue = append(r.Queue, req)
 	case listHostsRequest:
 		req.method = "GET"
 		req.url = r.getUrl(apiHostsInfoRequestUrl)
-		r.queue = append(r.queue, req)
+		r.Queue = append(r.Queue, req)
 	case listPoolsRequest:
 		req.method = "GET"
 		req.url = r.getUrl(apiHostsInfoRequestUrl)
-		r.queue = append(r.queue, req)
+		r.Queue = append(r.Queue, req)
 	}
 }
 
 func (r *Requests) getUrl(url string) string {
 	url = strings.Replace(url, ":cid", r.ContainerName, 1)
-	url = strings.Replace(url, ":poolid", r.Poolname, 1)
-	url = strings.Replace(url, ":hid", r.Hostname, 1)
+	url = strings.Replace(url, ":poolid", r.PoolName, 1)
+	url = strings.Replace(url, ":hid", r.HostName, 1)
 
 	apiUrl := apiUrlDefault
 	if r.ApiUrl != "" {
