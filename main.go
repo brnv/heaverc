@@ -21,44 +21,44 @@ const (
 
 var usage = `heaverc, the heaverd-ng client
 
+	http://git.rn/projects/DEVOPS/repos/heaverd-ng/
+
 	Usage:
-	heaverc -Cn <name> -i <image>... [--config <file_path>]
-	        [--key <path>] [--raw-key <rsa_key>] [--pool <poolname>]
-			[--dryrun]
+	heaverc -Cn <name> -p <poolname> -i <image>...
+	        [--config <file_path>] [--key <key_path>]
+	        [--raw-key <rsa_key>] [--dryrun]
 	heaverc -Sn <name> [--config <file_path>] [--dryrun]
 	heaverc -Tn <name> [--config <file_path>] [--dryrun]
 	heaverc -Dn <name> [--config <file_path>] [--dryrun]
 	heaverc -TDn <name> [--config <file_path>] [--dryrun]
 	heaverc -L [--host <hostname>] [--config <file_path>]
 	heaverc -H [--config <file_path>] [--dryrun]
-	heaverc -P [--config <file_path>] [--dryrun]
+	heaverc -I [--config <file_path>] [--dryrun]
 	heaverc -h | --help
 
 	Options:
-	-h, --help                      Show this help.
-	-C, --create                    Create container.
-	-S, --start                     Start container.
-	-T, --stop                      Stop container.
-	-D, --destroy                   Destroy  container.
-	-L, --list                      List containers.
-	-H, --host-list                 List hosts.
-	-P, --pool-list                 List pools.
-	-N, --dryrun                    Don't touch anything. report what will be done.
-	-n <name>, --name <name>        Name of container.
-	-i <image>, --image  <image>    Image(s) for container.
-	--host <hostname>               Host to operate on.
-	--pool <poolname>               Pool to create container on.
-	-k <key_path>, --key <key_path> Public ssh key (will be added to root's auhorized keys).
-	--raw-key <rsa_key>             Public ssh key as string.
-	--config <path>                 Configuration file [default: /etc/heaverc-ng/config.toml].
+	-h, --help                       Show this help.
+	-C, --create                     Create container.
+	-S, --start                      Start container.
+	-T, --stop                       Stop container.
+	-D, --destroy                    Destroy  container.
+	-L, --list                       List containers.
+	-H, --host-list                  List hosts.
+	-I, --pool-list                  List pools.
+	-N, --dryrun                     Don't touch anything. Report what will be done.
+	-n <name>, --name <name>         Name of container.
+	-p <poolname>, --pool <poolname> Pool to create container on.
+	-i <image>, --image <image>      Image(s) for container.
+	--host <hostname>                Host to operate on.
+	-k <key_path>, --key <key_path>  Public ssh key (will be added to root's auhorized keys).
+	--raw-key <rsa_key>              Public ssh key as string.
+	--config <file_path>             Configuration file [default: /etc/heaverc-ng/config.toml].
 `
 
 func main() {
 	args, err := docopt.Parse(usage, nil, true, version, false)
 	if err != nil {
-		fmt.Print(err)
-		fmt.Print("\n")
-		os.Exit(1)
+		panic(err)
 	}
 
 	containerName := ""
