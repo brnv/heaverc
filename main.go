@@ -14,10 +14,7 @@ var (
 	log = logging.MustGetLogger("heaverc")
 )
 
-const (
-	version           = "0.1"
-	defaultConfigFile = "/etc/heaverc-ng/config.toml"
-)
+const version = "0.1"
 
 var usage = `heaverc, the heaverd-ng client
 
@@ -31,7 +28,7 @@ var usage = `heaverc, the heaverd-ng client
 	heaverc -Tn <name> [--config <file_path>] [--dryrun]
 	heaverc -Dn <name> [--config <file_path>] [--dryrun]
 	heaverc -TDn <name> [--config <file_path>] [--dryrun]
-	heaverc -L [--host <hostname>] [--config <file_path>]
+	heaverc -L [--host <hostname>] [--config <file_path>] [--dryrun]
 	heaverc -H [--config <file_path>] [--dryrun]
 	heaverc -I [--config <file_path>] [--dryrun]
 	heaverc -h | --help
@@ -61,34 +58,21 @@ func main() {
 		panic(err)
 	}
 
-	containerName := ""
-	if args["--name"] != nil {
-		containerName = args["--name"].(string)
-	}
-
-	hostname := ""
-	if args["--host"] != nil {
-		hostname = args["--host"].(string)
-	}
-
-	poolname := ""
-	if args["--pool"] != nil {
-		poolname = args["--pool"].(string)
-	}
-
 	requestsChain := &Requests{}
 
-	requestsChain.SetContainerName(containerName)
-	requestsChain.SetHostname(hostname)
-	requestsChain.SetPoolname(poolname)
-
-	if args["--dryrun"] != false {
-		requestsChain.SetDryrun(true)
+	if args["--name"] != nil {
+		requestsChain.ContainerName = args["--name"].(string)
 	}
 
-	if args["--config"] == nil {
-		args["--config"] = defaultConfigFile
+	if args["--host"] != nil {
+		requestsChain.Hostname = args["--host"].(string)
 	}
+
+	if args["--pool"] != nil {
+		requestsChain.Poolname = args["--pool"].(string)
+	}
+
+	requestsChain.SetDryrun(args["--dryrun"].(bool))
 
 	config, err := getConfig(string(args["--config"].(string)))
 	if err != nil {
@@ -100,63 +84,55 @@ func main() {
 		log.Fatal(err)
 	}
 
-	requestsChain.SetApiUrl(apiUrl)
+	requestsChain.ApiUrl = apiUrl
 
-	if args["--create"] != false {
+	if args["--create"].(bool) {
 		images := []string{}
-		key := ""
-		rawkey := ""
+		images = args["--image"].([]string)
 
-		if args["--image"] != nil {
-			images = args["--image"].([]string)
-		}
-
+		keyPath := ""
 		if args["--key"] != nil {
-			key = args["--key"].(string)
+			keyPath = args["--key"].(string)
 		}
 
+		rawkey := ""
 		if args["--raw-key"] != nil {
 			rawkey = args["--raw-key"].(string)
 		}
 
 		requestsChain.Enqueue(createRequest{
 			Images: images,
-			Key:    key,
+			Key:    keyPath,
 			Rawkey: rawkey,
 		})
 	}
 
-	if args["--start"] != false {
+	if args["--start"].(bool) {
 		requestsChain.Enqueue(startRequest{})
 	}
 
-	if args["--stop"] != false {
+	if args["--stop"].(bool) {
 		requestsChain.Enqueue(stopRequest{})
 	}
 
-	if args["--destroy"] != false {
+	if args["--destroy"].(bool) {
 		requestsChain.Enqueue(deleteRequest{})
 	}
 
-	if args["--list"] != false {
-		if hostname == "" {
+	if args["--list"].(bool) {
+		if requestsChain.Hostname == "" {
 			requestsChain.Enqueue(listAllHostsContainersRequest{})
 		} else {
 			requestsChain.Enqueue(listOneHostContainersRequest{})
 		}
 	}
 
-	if args["--host-list"] != false {
+	if args["--host-list"].(bool) {
 		requestsChain.Enqueue(listHostsRequest{})
 	}
 
-	if args["--pool-list"] != false {
+	if args["--pool-list"].(bool) {
 		requestsChain.Enqueue(listPoolsRequest{})
-	}
-
-	err = checkArgs(args)
-	if err != nil {
-		log.Fatal(err)
 	}
 
 	resChan := make(chan string)
@@ -183,18 +159,14 @@ func main() {
 	}
 }
 
-func checkArgs(args map[string]interface{}) error {
-	return nil
-}
-
 func getConfig(path string) (zhash.Hash, error) {
-	f, err := os.Open(path)
+	configFile, err := os.Open(path)
 	if err != nil {
 		return zhash.Hash{}, err
 	}
 
 	config := zhash.NewHash()
-	config.ReadHash(bufio.NewReader(f))
+	config.ReadHash(bufio.NewReader(configFile))
 
 	return config, nil
 }

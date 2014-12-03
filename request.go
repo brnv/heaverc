@@ -36,10 +36,10 @@ type executor interface {
 
 type Requests struct {
 	queue         []executor
-	containerName string
-	poolname      string
-	hostname      string
-	apiUrl        string
+	ContainerName string
+	Poolname      string
+	Hostname      string
+	ApiUrl        string
 	dryrun        bool
 }
 
@@ -95,24 +95,8 @@ type containerInfo struct {
 	Ip     string
 }
 
-func (r *Requests) SetContainerName(containerName string) {
-	r.containerName = containerName
-}
-
-func (r *Requests) SetHostname(hostname string) {
-	r.hostname = hostname
-}
-
-func (r *Requests) SetPoolname(poolname string) {
-	r.poolname = poolname
-}
-
 func (r *Requests) SetDryrun(dryrun bool) {
-	r.dryrun = true
-}
-
-func (r *Requests) SetApiUrl(apiUrl string) {
-	r.apiUrl = apiUrl
+	r.dryrun = dryrun
 }
 
 func (r *Requests) Run(
@@ -489,7 +473,7 @@ func (r *Requests) Enqueue(request executor) {
 	switch req := request.(type) {
 	case createRequest:
 		req.method = "POST"
-		if r.poolname != "" {
+		if r.Poolname != "" {
 			req.url = r.getUrl(apiCreateInsidePoolRequestUrl)
 		} else {
 			req.url = r.getUrl(apiCreateRequestUrl)
@@ -527,13 +511,13 @@ func (r *Requests) Enqueue(request executor) {
 }
 
 func (r *Requests) getUrl(url string) string {
-	url = strings.Replace(url, ":cid", r.containerName, 1)
-	url = strings.Replace(url, ":poolid", r.poolname, 1)
-	url = strings.Replace(url, ":hid", r.hostname, 1)
+	url = strings.Replace(url, ":cid", r.ContainerName, 1)
+	url = strings.Replace(url, ":poolid", r.Poolname, 1)
+	url = strings.Replace(url, ":hid", r.Hostname, 1)
 
 	apiUrl := apiUrlDefault
-	if r.apiUrl != "" {
-		apiUrl = r.apiUrl
+	if r.ApiUrl != "" {
+		apiUrl = r.ApiUrl
 	}
 
 	return apiUrl + apiVersion + url
