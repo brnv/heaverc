@@ -344,26 +344,26 @@ func (r listHostsRequest) Execute() (string, error) {
 			))
 		list = append(list,
 			fmt.Sprintf(
-				"score: %f",
+				"score: %f/1",
 				hostsList[hostname].Score,
 			))
 		list = append(list,
 			fmt.Sprintf(
-				"cpu capacity: %v%%, cpu usage: %v%%",
+				"cpu: %v/%v%%",
+				hostsList[hostname].CpuCapacity-hostsList[hostname].CpuUsage,
 				hostsList[hostname].CpuCapacity,
-				hostsList[hostname].CpuUsage,
 			))
 		list = append(list,
 			fmt.Sprintf(
-				"ram capacity: %v GiB, ram usage: %v GiB",
-				hostsList[hostname].RamCapacity/(1024*1024),
-				(hostsList[hostname].RamCapacity-hostsList[hostname].RamFree)/(1024*1024),
+				"ram: %v/%v MiB",
+				hostsList[hostname].RamFree/1024,
+				hostsList[hostname].RamCapacity/1024,
 			))
 		list = append(list,
 			fmt.Sprintf(
-				"disk capacity: %v GiB, disk usage: %v GiB",
-				hostsList[hostname].DiskCapacity/(1024*1024),
-				(hostsList[hostname].DiskCapacity-hostsList[hostname].DiskFree)/(1024*1024),
+				"disk: %v/%v MiB",
+				hostsList[hostname].DiskFree/1024,
+				hostsList[hostname].DiskCapacity/1024,
 			))
 		list = append(list,
 			fmt.Sprintf(
