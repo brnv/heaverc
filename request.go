@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/template"
 )
 
 const (
@@ -98,7 +99,7 @@ type containerInfo struct {
 func (r *Requests) Run(callback func(string)) error {
 	for _, request := range r.Queue {
 		if r.DryRun == true {
-			callback(fmt.Sprintf("%s", request))
+			callback(fmt.Sprint(request))
 			continue
 		}
 		result, err := request.Execute()
@@ -296,6 +297,7 @@ func (r listHostsRequest) Execute() (string, error) {
 		DiskFree     int64
 		Containers   map[string]containerInfo
 	}{}
+
 	err = json.Unmarshal(raw, &hostsList)
 	if err != nil {
 		return "", err
@@ -309,43 +311,52 @@ func (r listHostsRequest) Execute() (string, error) {
 
 	list := []string{}
 
+	const hostInfoTemplateDoc = `
+{{.HostName}}
+{{.Underline}}
+score: {{.Score}}/1
+cpu: {{.CpuFree}}/{{.CpuCapacity}} %
+ram: {{.RamFree}}/{{.RamCapacity}} MiB
+disk: {{.DiskFree}}/{{.DiskCapacity}} MiB
+boxes:
+{{.Containers}}
+`
+	hostInfoTemplate := template.Must(
+		template.New("hostInfo").Parse(hostInfoTemplateDoc))
+
+	type hostInfoTemplateStruct struct {
+		HostName     string
+		Underline    string
+		Score        string
+		CpuFree      string
+		CpuCapacity  string
+		RamFree      string
+		RamCapacity  string
+		DiskFree     string
+		DiskCapacity string
+		Containers   string
+	}
+
 	for _, hostname := range keys {
-		list = append(list,
-			fmt.Sprintf(
-				"%s\n%s",
-				hostname,
-				strings.Repeat("-", len(hostname)),
-			))
-		list = append(list,
-			fmt.Sprintf(
-				"score: %f/1",
-				hostsList[hostname].Score,
-			))
-		list = append(list,
-			fmt.Sprintf(
-				"cpu: %v/%v%%",
-				hostsList[hostname].CpuCapacity-hostsList[hostname].CpuUsage,
-				hostsList[hostname].CpuCapacity,
-			))
-		list = append(list,
-			fmt.Sprintf(
-				"ram: %v/%v MiB",
-				hostsList[hostname].RamFree/1024,
-				hostsList[hostname].RamCapacity/1024,
-			))
-		list = append(list,
-			fmt.Sprintf(
-				"disk: %v/%v MiB",
-				hostsList[hostname].DiskFree/1024,
-				hostsList[hostname].DiskCapacity/1024,
-			))
-		list = append(list,
-			fmt.Sprintf(
-				"boxes:\n%s\n",
-				formatToRightJustifiedString(
-					getContainersStringedArray(
-						hostsList[hostname].Containers)),
-			))
+		chunk := bytes.NewBufferString("")
+
+		hostInfoTemplate.Execute(chunk, hostInfoTemplateStruct{
+			HostName:  hostname,
+			Underline: strings.Repeat("-", len(hostname)),
+			Score:     fmt.Sprintf("%.4f", hostsList[hostname].Score),
+			CpuFree: fmt.Sprint(hostsList[hostname].CpuCapacity -
+				hostsList[hostname].CpuUsage),
+			CpuCapacity:  fmt.Sprint(hostsList[hostname].CpuCapacity),
+			RamFree:      fmt.Sprint(hostsList[hostname].RamFree / 1024),
+			RamCapacity:  fmt.Sprint(hostsList[hostname].RamCapacity / 1024),
+			DiskFree:     fmt.Sprint(hostsList[hostname].DiskFree / 1024),
+			DiskCapacity: fmt.Sprint(hostsList[hostname].DiskCapacity / 1024),
+			Containers: formatToRightJustifiedString(
+				getContainersStringedArray(
+					hostsList[hostname].Containers)),
+		})
+
+		list = append(list, chunk.String())
 	}
 
 	return formatToSingleString(list), nil
