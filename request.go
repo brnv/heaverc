@@ -13,16 +13,15 @@ import (
 	"text/template"
 )
 
+var (
+	ApiUrl        = "http://localhost:8081/"
+	ContainerName = ""
+	HostName      = ""
+	PoolName      = ""
+)
+
 const (
-	apiUrlDefault                 = "http://localhost:8081/"
-	apiVersion                    = "v2"
-	apiStartRequestUrl            = "/c/:cid/start"
-	apiCreateRequestUrl           = "/c/:cid"
-	apiCreateInsidePoolRequestUrl = "/p/:poolid/:cid"
-	apiStopRequestUrl             = "/c/:cid/stop"
-	apiDeleteRequestUrl           = "/c/:cid"
-	apiHostsInfoRequestUrl        = "/h"
-	apiOneHostInfoRequestUrl      = "/h/:hid/stats"
+	apiVersion = "v2"
 
 	MessageContainerStarted   = "Container started"
 	MessageContainerStopped   = "Container stopped"
@@ -32,57 +31,28 @@ const (
 )
 
 type executor interface {
-	Execute() (string, error)
+	Execute(dryRun bool) (string, error)
 }
 
 type Requests struct {
-	Queue         []executor
-	ContainerName string
-	PoolName      string
-	HostName      string
-	ApiUrl        string
-	DryRun        bool
+	Queue  []executor
+	DryRun bool
 }
 
 type (
-	defaultRequest struct {
-		method string
-		url    string
-	}
 	createRequest struct {
-		defaultRequest
 		Images []string
 		Key    string
 		Rawkey string
 	}
-	startRequest                  struct{ defaultRequest }
-	stopRequest                   struct{ defaultRequest }
-	deleteRequest                 struct{ defaultRequest }
-	listAllHostsContainersRequest struct{ defaultRequest }
-	listOneHostContainersRequest  struct{ defaultRequest }
-	listHostsRequest              struct{ defaultRequest }
-	listPoolsRequest              struct{ defaultRequest }
+	startRequest                  struct{}
+	stopRequest                   struct{}
+	deleteRequest                 struct{}
+	listAllHostsContainersRequest struct{}
+	listOneHostContainersRequest  struct{}
+	listHostsRequest              struct{}
+	listPoolsRequest              struct{}
 )
-
-func (request defaultRequest) String() string {
-	return fmt.Sprintf("%s %s", request.method, request.url)
-}
-
-func (request createRequest) String() string {
-	res := fmt.Sprintf("%s %s", request.method, request.url)
-
-	for _, image := range request.Images {
-		res = res + fmt.Sprintf(" image=%v", image)
-	}
-
-	if request.Rawkey != "" {
-		res = res + fmt.Sprintf(" key=%v", request.Rawkey)
-	} else if request.Key != "" {
-		res = res + fmt.Sprintf(" key=%v", request.Key)
-	}
-
-	return res
-}
 
 type heaverdJsonResponse struct {
 	Error string
@@ -96,13 +66,13 @@ type containerInfo struct {
 	Ip     string
 }
 
+func (r *Requests) Enqueue(request executor) {
+	r.Queue = append(r.Queue, request)
+}
+
 func (r *Requests) Run(callback func(string)) error {
 	for _, request := range r.Queue {
-		if r.DryRun == true {
-			callback(fmt.Sprint(request))
-			continue
-		}
-		result, err := request.Execute()
+		result, err := request.Execute(r.DryRun)
 		if err != nil {
 			return err
 		}
@@ -111,17 +81,32 @@ func (r *Requests) Run(callback func(string)) error {
 	return nil
 }
 
-func (r createRequest) Execute() (string, error) {
-	key, err := r.getKey()
+func (request createRequest) Execute(dryRun bool) (string, error) {
+	key, err := request.getKey()
 	if err != nil {
 		return "", err
 	}
 
+	url := fmt.Sprintf("%s%s/p/%s/%s", ApiUrl, apiVersion, PoolName, ContainerName)
+
+	if dryRun {
+		for _, image := range request.Images {
+			url = url + fmt.Sprintf(" image=%v", image)
+		}
+
+		if request.Rawkey != "" {
+			url = url + fmt.Sprintf(" key=%v", request.Rawkey)
+		} else if request.Key != "" {
+			url = url + fmt.Sprintf(" key=%v", request.Key)
+		}
+
+		return "POST " + url, nil
+	}
+
 	raw, err := rawResponse(
-		r.url,
-		r.method,
+		url, "POST",
 		map[string]interface{}{
-			"image": r.Images,
+			"image": request.Images,
 			"key":   key,
 		},
 	)
@@ -150,13 +135,13 @@ func (r createRequest) Execute() (string, error) {
 		"addresses: %v", c.Name, c.Host, c.Ip), nil
 }
 
-func (r createRequest) getKey() (string, error) {
-	if r.Rawkey != "" {
-		return r.Rawkey, nil
+func (request createRequest) getKey() (string, error) {
+	if request.Rawkey != "" {
+		return request.Rawkey, nil
 	}
 
-	if r.Key != "" {
-		key, err := ioutil.ReadFile(r.Key)
+	if request.Key != "" {
+		key, err := ioutil.ReadFile(request.Key)
 		if err != nil {
 			return "", err
 		}
@@ -166,8 +151,14 @@ func (r createRequest) getKey() (string, error) {
 	return "", nil
 }
 
-func (r startRequest) Execute() (string, error) {
-	resp, err := execute(r.url, r.method, nil)
+func (request startRequest) Execute(dryRun bool) (string, error) {
+	url := fmt.Sprintf("%s%s/c/%s/start", ApiUrl, apiVersion, ContainerName)
+
+	if dryRun {
+		return "POST " + url, nil
+	}
+
+	resp, err := execute(url, "POST", nil)
 	if err != nil {
 		return "", err
 	}
@@ -183,8 +174,14 @@ func (r startRequest) Execute() (string, error) {
 	return "", nil
 }
 
-func (r stopRequest) Execute() (string, error) {
-	resp, err := execute(r.url, r.method, nil)
+func (request stopRequest) Execute(dryRun bool) (string, error) {
+	url := fmt.Sprintf("%s%s/c/%s/stop", ApiUrl, apiVersion, ContainerName)
+
+	if dryRun {
+		return "POST " + url, nil
+	}
+
+	resp, err := execute(url, "POST", nil)
 	if err != nil {
 		return "", err
 	}
@@ -200,8 +197,14 @@ func (r stopRequest) Execute() (string, error) {
 	return "", nil
 }
 
-func (r deleteRequest) Execute() (string, error) {
-	resp, err := execute(r.url, r.method, nil)
+func (request deleteRequest) Execute(dryRun bool) (string, error) {
+	url := fmt.Sprintf("%s%s/c/%s", ApiUrl, apiVersion, ContainerName)
+
+	if dryRun {
+		return "DELETE " + url, nil
+	}
+
+	resp, err := execute(url, "DELETE", nil)
 	if err != nil {
 		return "", err
 	}
@@ -231,8 +234,14 @@ func (r deleteRequest) Execute() (string, error) {
 	return "", nil
 }
 
-func (r listAllHostsContainersRequest) Execute() (string, error) {
-	raw, err := rawResponse(r.url, r.method, nil)
+func (request listAllHostsContainersRequest) Execute(dryRun bool) (string, error) {
+	url := fmt.Sprintf("%s%s/h", ApiUrl, apiVersion)
+
+	if dryRun {
+		return "GET " + url, nil
+	}
+
+	raw, err := rawResponse(url, "GET", nil)
 	if err != nil {
 		return "", err
 	}
@@ -259,11 +268,17 @@ func (r listAllHostsContainersRequest) Execute() (string, error) {
 		)
 	}
 
-	return formatToRightJustifiedString(list), nil
+	return justifyStringsToRight(list), nil
 }
 
-func (r listOneHostContainersRequest) Execute() (string, error) {
-	raw, err := rawResponse(r.url, r.method, nil)
+func (request listOneHostContainersRequest) Execute(dryRun bool) (string, error) {
+	url := fmt.Sprintf("%s%s/h/%s/stats", ApiUrl, apiVersion, HostName)
+
+	if dryRun {
+		return "GET " + url, nil
+	}
+
+	raw, err := rawResponse(url, "GET", nil)
 	if err != nil {
 		return "", err
 	}
@@ -278,11 +293,17 @@ func (r listOneHostContainersRequest) Execute() (string, error) {
 
 	list := getContainersStringedArray(host.Containers)
 
-	return formatToRightJustifiedString(list), nil
+	return justifyStringsToRight(list), nil
 }
 
-func (r listHostsRequest) Execute() (string, error) {
-	raw, err := rawResponse(r.url, r.method, nil)
+func (request listHostsRequest) Execute(dryRun bool) (string, error) {
+	url := fmt.Sprintf("%s%s/h", ApiUrl, apiVersion)
+
+	if dryRun {
+		return "GET " + url, nil
+	}
+
+	raw, err := rawResponse(url, "GET", nil)
 	if err != nil {
 		return "", err
 	}
@@ -351,7 +372,7 @@ boxes:
 			RamCapacity:  fmt.Sprint(hostsList[hostname].RamCapacity / 1024),
 			DiskFree:     fmt.Sprint(hostsList[hostname].DiskFree / 1024),
 			DiskCapacity: fmt.Sprint(hostsList[hostname].DiskCapacity / 1024),
-			Containers: formatToRightJustifiedString(
+			Containers: justifyStringsToRight(
 				getContainersStringedArray(
 					hostsList[hostname].Containers)),
 		})
@@ -359,7 +380,7 @@ boxes:
 		list = append(list, chunk.String())
 	}
 
-	return formatToSingleString(list), nil
+	return singleString(list), nil
 }
 
 func getContainersStringedArray(containers map[string]containerInfo) []string {
@@ -391,8 +412,14 @@ func getContainersStringedArray(containers map[string]containerInfo) []string {
 	return containersListStringed
 }
 
-func (r listPoolsRequest) Execute() (string, error) {
-	raw, err := rawResponse(r.url, r.method, nil)
+func (request listPoolsRequest) Execute(dryRun bool) (string, error) {
+	url := fmt.Sprintf("%s%s/h", ApiUrl, apiVersion)
+
+	if dryRun {
+		return "GET " + url, nil
+	}
+
+	raw, err := rawResponse(url, "GET", nil)
 	if err != nil {
 		return "", err
 	}
@@ -421,7 +448,7 @@ func (r listPoolsRequest) Execute() (string, error) {
 		}
 	}
 
-	return formatToSingleString(pools), nil
+	return singleString(pools), nil
 }
 
 func execute(
@@ -470,61 +497,7 @@ func rawResponse(
 	return raw, err
 }
 
-func (r *Requests) Enqueue(request executor) {
-	switch req := request.(type) {
-	case createRequest:
-		req.method = "POST"
-		if r.PoolName != "" {
-			req.url = r.getUrl(apiCreateInsidePoolRequestUrl)
-		} else {
-			req.url = r.getUrl(apiCreateRequestUrl)
-		}
-		r.Queue = append(r.Queue, req)
-	case startRequest:
-		req.method = "POST"
-		req.url = r.getUrl(apiStartRequestUrl)
-		r.Queue = append(r.Queue, req)
-	case stopRequest:
-		req.method = "POST"
-		req.url = r.getUrl(apiStopRequestUrl)
-		r.Queue = append(r.Queue, req)
-	case deleteRequest:
-		req.method = "DELETE"
-		req.url = r.getUrl(apiDeleteRequestUrl)
-		r.Queue = append(r.Queue, req)
-	case listAllHostsContainersRequest:
-		req.method = "GET"
-		req.url = r.getUrl(apiHostsInfoRequestUrl)
-		r.Queue = append(r.Queue, req)
-	case listOneHostContainersRequest:
-		req.method = "GET"
-		req.url = r.getUrl(apiOneHostInfoRequestUrl)
-		r.Queue = append(r.Queue, req)
-	case listHostsRequest:
-		req.method = "GET"
-		req.url = r.getUrl(apiHostsInfoRequestUrl)
-		r.Queue = append(r.Queue, req)
-	case listPoolsRequest:
-		req.method = "GET"
-		req.url = r.getUrl(apiHostsInfoRequestUrl)
-		r.Queue = append(r.Queue, req)
-	}
-}
-
-func (r *Requests) getUrl(url string) string {
-	url = strings.Replace(url, ":cid", r.ContainerName, 1)
-	url = strings.Replace(url, ":poolid", r.PoolName, 1)
-	url = strings.Replace(url, ":hid", r.HostName, 1)
-
-	apiUrl := apiUrlDefault
-	if r.ApiUrl != "" {
-		apiUrl = r.ApiUrl
-	}
-
-	return apiUrl + apiVersion + url
-}
-
-func formatToRightJustifiedString(strings []string) string {
+func justifyStringsToRight(strings []string) string {
 	maxNameLen := 0
 	for _, s := range strings {
 		if len(s) > maxNameLen {
@@ -543,7 +516,7 @@ func formatToRightJustifiedString(strings []string) string {
 	return res
 }
 
-func formatToSingleString(strings []string) string {
+func singleString(strings []string) string {
 	keys := []int{}
 	for k := range strings {
 		keys = append(keys, k)

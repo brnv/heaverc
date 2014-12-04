@@ -58,19 +58,19 @@ func main() {
 		panic(err)
 	}
 
-	requestsChain := &Requests{}
-
 	if args["--name"] != nil {
-		requestsChain.ContainerName = args["--name"].(string)
-	}
-
-	if args["--host"] != nil {
-		requestsChain.HostName = args["--host"].(string)
+		ContainerName = args["--name"].(string)
 	}
 
 	if args["--pool"] != nil {
-		requestsChain.PoolName = args["--pool"].(string)
+		PoolName = args["--pool"].(string)
 	}
+
+	if args["--host"] != nil {
+		HostName = args["--host"].(string)
+	}
+
+	requestsChain := &Requests{}
 
 	requestsChain.DryRun = args["--dryrun"].(bool)
 
@@ -79,12 +79,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	apiUrl, err := config.GetString("api_url")
+	ApiUrl, err = config.GetString("api_url")
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	requestsChain.ApiUrl = apiUrl
 
 	if args["--create"].(bool) {
 		images := []string{}
@@ -120,7 +118,7 @@ func main() {
 	}
 
 	if args["--list"].(bool) {
-		if requestsChain.HostName == "" {
+		if args["--host"] == nil {
 			requestsChain.Enqueue(listAllHostsContainersRequest{})
 		} else {
 			requestsChain.Enqueue(listOneHostContainersRequest{})
