@@ -49,7 +49,7 @@ var usage = `heaverc, the heaverd-ng client
 	--host <hostname>                Host to operate on.
 	-k <key_path>, --key <key_path>  Public ssh key (will be added to root's auhorized keys).
 	--raw-key <rsa_key>              Public ssh key as string.
-	--config <file_path>             Configuration file [default: /etc/heaverc-ng/config.toml].
+	--config <file_path>             Configuration file [default: /etc/heaverc/config.toml].
 `
 
 func main() {
