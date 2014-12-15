@@ -1,13 +1,13 @@
 # Maintainer: Alexey Baranov <a.baranov@office.ngs.ru>
 
-pkgname=heaverc-ng
+pkgname=heaverc
 pkgver=c08c5d
 pkgrel=1
 pkgdesc="heaverd-ng client"
 arch=('x86_64')
 url="http://git.rn/projects/DEVOPS/repos/heaverc/"
 license=('unknown')
-backup=('etc/heaverc-ng/config.toml')
+backup=('etc/heaverc/config.toml')
 md5sums=() #generate with 'makepkg -g'
 branch="dev"
 
@@ -31,8 +31,8 @@ build() {
 
 package() {
 	mkdir -p $pkgdir/usr/bin/
-	mkdir -p $pkgdir/etc/heaverc-ng/
+	mkdir -p $pkgdir/etc/heaverc/
 
-	cp $srcdir/main $pkgdir/usr/bin/heaverc-ng
-	cp $srcdir/config.toml $pkgdir/etc/heaverc-ng/
+	cp $srcdir/main $pkgdir/usr/bin/heaverc
+	cp $srcdir/config.toml $pkgdir/etc/heaverc/
 }
