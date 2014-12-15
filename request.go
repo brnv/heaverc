@@ -64,6 +64,7 @@ type containerInfo struct {
 	Host   string
 	Status string
 	Ip     string
+	Ips    map[string][]string
 }
 
 func (r *Requests) Enqueue(request executor) {
@@ -401,11 +402,11 @@ func getContainersStringedArray(containers map[string]containerInfo) []string {
 	for _, k := range keys {
 		containersListStringed = append(containersListStringed,
 			fmt.Sprintf(
-				"%"+strconv.Itoa(maxNameLen)+"s (on %s): %8s, ip: %15s",
+				"%"+strconv.Itoa(maxNameLen)+"s (on %s): %8s, ip: %18s",
 				containers[k].Name,
 				containers[k].Host,
 				containers[k].Status,
-				containers[k].Ip,
+				containers[k].Ips["eth0"][0],
 			))
 	}
 
